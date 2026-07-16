@@ -192,10 +192,9 @@ extension NavigationBarView: UITextFieldDelegate {
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         guard let text = textField.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !text.isEmpty else { return false }
-        
+              !text.isEmpty else { return true }
         delegate?.navigationBar(self, didSubmitText: text)
         textField.resignFirstResponder()
-        return false
+        return true
     }
 }
