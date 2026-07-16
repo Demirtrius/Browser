@@ -25,7 +25,7 @@ class SettingsView: UIView {
     private let closeButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Done", for: .normal)
-        button.setTitleColor(UIColor(hex: 0x4285F4), for: .normal)
+        button.setTitleColor(UIColor(hex: 0x6CB4FF), for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
@@ -35,7 +35,7 @@ class SettingsView: UIView {
         let label = UILabel()
         label.text = "Settings"
         label.font = .systemFont(ofSize: 20, weight: .bold)
-        label.textColor = UIColor(hex: 0x333333)
+        label.textColor = UIColor(hex: 0xFFFFFF)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -81,7 +81,11 @@ class SettingsView: UIView {
         let tf = UITextField()
         tf.placeholder = "e.g., 192.168.1.1"
         tf.font = .systemFont(ofSize: 14)
-        tf.borderStyle = .roundedRect
+        tf.textColor = UIColor(hex: 0xFFFFFF)
+        tf.backgroundColor = UIColor(hex: 0x3A3A3C)
+        tf.borderStyle = .none
+        tf.layer.cornerRadius = 8
+        tf.keyboardAppearance = .dark
         tf.autocapitalizationType = .none
         tf.autocorrectionType = .no
         tf.translatesAutoresizingMaskIntoConstraints = false
@@ -93,8 +97,12 @@ class SettingsView: UIView {
         let tf = UITextField()
         tf.placeholder = "e.g., 8080"
         tf.font = .systemFont(ofSize: 14)
-        tf.borderStyle = .roundedRect
+        tf.textColor = UIColor(hex: 0xFFFFFF)
+        tf.backgroundColor = UIColor(hex: 0x3A3A3C)
+        tf.borderStyle = .none
+        tf.layer.cornerRadius = 8
         tf.keyboardType = .numberPad
+        tf.keyboardAppearance = .dark
         tf.translatesAutoresizingMaskIntoConstraints = false
         return tf
     }()
@@ -105,7 +113,11 @@ class SettingsView: UIView {
         let tf = UITextField()
         tf.placeholder = "Downloads"
         tf.font = .systemFont(ofSize: 14)
-        tf.borderStyle = .roundedRect
+        tf.textColor = UIColor(hex: 0xFFFFFF)
+        tf.backgroundColor = UIColor(hex: 0x3A3A3C)
+        tf.borderStyle = .none
+        tf.layer.cornerRadius = 8
+        tf.keyboardAppearance = .dark
         tf.autocapitalizationType = .none
         tf.autocorrectionType = .no
         tf.translatesAutoresizingMaskIntoConstraints = false
@@ -148,7 +160,7 @@ class SettingsView: UIView {
     }
     
     private func setupUI() {
-        backgroundColor = .white
+        backgroundColor = UIColor(hex: 0x1C1C1E) // Dark settings bg
         
         addSubview(closeButton)
         addSubview(titleLabel)
@@ -246,7 +258,7 @@ class SettingsView: UIView {
         let label = UILabel()
         label.text = text
         label.font = .systemFont(ofSize: 14, weight: .medium)
-        label.textColor = UIColor(hex: 0x333333)
+        label.textColor = UIColor(hex: 0xE5E5E5)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }
@@ -287,7 +299,7 @@ class SettingsView: UIView {
             let headerLabel = UILabel()
             headerLabel.text = header
             headerLabel.font = .systemFont(ofSize: 12, weight: .bold)
-            headerLabel.textColor = UIColor(hex: 0x4285F4)
+            headerLabel.textColor = UIColor(hex: 0x6CB4FF)
             headerLabel.translatesAutoresizingMaskIntoConstraints = false
             contentView.addArrangedSubview(headerLabel)
             
@@ -301,7 +313,7 @@ class SettingsView: UIView {
             
             // Add separator
             let separator = UIView()
-            separator.backgroundColor = UIColor(hex: 0xEEEEEE)
+            separator.backgroundColor = UIColor(hex: 0x3A3A3C)
             separator.translatesAutoresizingMaskIntoConstraints = false
             contentView.addArrangedSubview(separator)
             

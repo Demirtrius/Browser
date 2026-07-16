@@ -13,7 +13,7 @@ class NavigationBarView: UIView {
     
     private let omniboxContainer: UIView = {
         let view = UIView()
-        view.backgroundColor = UIColor(hex: 0xF1F1F1)
+        view.backgroundColor = UIColor(hex: 0x3A3A3C) // Dark omnibox bg
         view.layer.cornerRadius = 16
         view.clipsToBounds = true
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -23,7 +23,7 @@ class NavigationBarView: UIView {
     private let lockIcon: UIImageView = {
         let iv = UIImageView()
         iv.image = UIImage(systemName: "magnifyingglass")
-        iv.tintColor = UIColor(hex: 0x5F6368)
+        iv.tintColor = UIColor(hex: 0x98989D) // Light gray icon
         iv.contentMode = .scaleAspectFit
         iv.translatesAutoresizingMaskIntoConstraints = false
         return iv
@@ -32,7 +32,8 @@ class NavigationBarView: UIView {
     let omnibox: UITextField = {
         let field = UITextField()
         field.font = .systemFont(ofSize: 14)
-        field.textColor = UIColor(hex: 0x333333)
+        field.textColor = UIColor(hex: 0xFFFFFF) // White text
+        field.keyboardAppearance = .dark
         field.clearButtonMode = .whileEditing
         field.returnKeyType = .go
         field.autocapitalizationType = .none
@@ -45,14 +46,14 @@ class NavigationBarView: UIView {
     private let settingsButton: UIButton = {
         let button = UIButton(type: .system)
         button.setImage(UIImage(systemName: "gearshape"), for: .normal)
-        button.tintColor = UIColor(hex: 0x5F6368)
+        button.tintColor = UIColor(hex: 0x98989D) // Light gray
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
     
     private let progressView: UIProgressView = {
         let pv = UIProgressView(progressViewStyle: .bar)
-        pv.progressTintColor = UIColor(hex: 0x4285F4)
+        pv.progressTintColor = UIColor(hex: 0x6CB4FF) // Bright blue
         pv.trackTintColor = .clear
         pv.translatesAutoresizingMaskIntoConstraints = false
         pv.isHidden = true
@@ -69,7 +70,7 @@ class NavigationBarView: UIView {
     }
     
     private func setupUI() {
-        backgroundColor = .white
+        backgroundColor = UIColor(hex: 0x1C1C1E) // Dark nav bar
         
         addSubview(omniboxContainer)
         addSubview(settingsButton)
@@ -152,10 +153,10 @@ class NavigationBarView: UIView {
     private func updateLockIcon(urlString: String?) {
         if let urlStr = urlString, urlStr.hasPrefix("https://") {
             lockIcon.image = UIImage(systemName: "lock.fill")
-            lockIcon.tintColor = UIColor(hex: 0x5F6368)
+            lockIcon.tintColor = UIColor(hex: 0x6CB4FF) // Blue for secure
         } else {
             lockIcon.image = UIImage(systemName: "magnifyingglass")
-            lockIcon.tintColor = UIColor(hex: 0x5F6368)
+            lockIcon.tintColor = UIColor(hex: 0x98989D) // Gray
         }
     }
     

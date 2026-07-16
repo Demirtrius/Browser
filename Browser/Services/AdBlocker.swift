@@ -26,8 +26,9 @@ class AdBlocker {
             }
             
             // Compile new rules
-            self?.ruleListStore?.compileContentRuleList(
-                forIdentifier: self!.rulesIdentifier,
+            guard let strongSelf = self else { return }
+            strongSelf.ruleListStore?.compileContentRuleList(
+                forIdentifier: strongSelf.rulesIdentifier,
                 encodedContentRuleList: rulesJSON
             ) { [weak self] ruleList, error in
                 if let error = error {

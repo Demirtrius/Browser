@@ -13,6 +13,7 @@ class BrowserViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        overrideUserInterfaceStyle = .dark // Force dark mode for all system UI
         setupWebView()
         setupUI()
         setupDelegates()
@@ -64,7 +65,7 @@ class BrowserViewController: UIViewController {
     }
     
     private func setupUI() {
-        view.backgroundColor = .white
+        view.backgroundColor = UIColor(hex: 0x1C1C1E) // Dark background
         
         // Navigation Bar
         navigationBar = NavigationBarView()
@@ -78,9 +79,9 @@ class BrowserViewController: UIViewController {
         // Download Indicator
         downloadIndicator = UILabel()
         downloadIndicator.font = .systemFont(ofSize: 12, weight: .medium)
-        downloadIndicator.textColor = UIColor(hex: 0x4285F4)
+        downloadIndicator.textColor = UIColor(hex: 0x6CB4FF)
         downloadIndicator.textAlignment = .center
-        downloadIndicator.backgroundColor = UIColor(hex: 0xF1F1F1)
+        downloadIndicator.backgroundColor = UIColor(hex: 0x2C2C2E)
         downloadIndicator.layer.cornerRadius = 4
         downloadIndicator.clipsToBounds = true
         downloadIndicator.isHidden = true
