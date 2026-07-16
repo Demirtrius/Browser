@@ -9,102 +9,43 @@ class CookieManager {
     
     private init() {}
     
-    // MARK: - Save Cookies
     func saveCookies() {
-        let cookies = HTTPCookieStorage.shared.cookies ?? []
-        let cookieDictionaries = cookies.map { cookie -> [String: Any] in
-            var dict: [String: Any] = [:]
-            guard let properties = cookie.properties else { return dict }
-            for (key, value) in properties {
-                dict[key.rawValue] = value
+        guard let cookies = HTTPCookieStorage.shared.cookies, !cookies.isEmpty else { return }
+        let dicts = cookies.compactMap { $0.properties }
+        let serializable = dicts.map { dict -> [String: Any] in
+            var result: [String: Any] = [:]
+            for (key, value) in dict {
+                result[key.rawValue] = value
             }
-            return dict
+            return result
         }
-        
-        do {
-            let data = try JSONSerialization.data(withJSONObject: cookieDictionaries)
+        if let data = try? JSONSerialization.data(withJSONObject: serializable) {
             defaults.set(data, forKey: cookiesKey)
-        } catch {
-            print("[CookieManager] Failed to save cookies: \(error)")
         }
     }
     
-    // MARK: - Restore Cookies
     func restoreCookies() {
-        do {
-            guard let data = defaults.data(forKey: cookiesKey),
-                  let cookieDictionaries = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                return
-            }
-            
-            let cookies = cookieDictionaries.compactMap { dict -> HTTPCookie? in
-                var properties: [HTTPCookiePropertyKey: Any] = [:]
-                for (key, value) in dict {
-                    properties[HTTPCookiePropertyKey(key)] = value
-                }
-                return HTTPCookie(properties: properties)
-            }
-            
-            let storage = HTTPCookieStorage.shared
-            for cookie in cookies {
-                storage.setCookie(cookie)
-            }
-            
-            print("[CookieManager] Restored \(cookies.count) cookies")
-        } catch {
-            // If cookies are corrupted, clear them to prevent repeated crashes
-            print("[CookieManager] Failed to restore cookies, clearing saved data: \(error)")
-            defaults.removeObject(forKey: cookiesKey)
-        }
-    }
-    
-    // MARK: - Clear History (keep cookies)
-    func clearHistory() {
-        let dataStore = WKWebsiteDataStore.default()
-        let dataTypes: Set<String> = [
-            WKWebsiteDataTypeDiskCache,
-            WKWebsiteDataTypeOfflineWebApplicationCache,
-            WKWebsiteDataTypeMemoryCache,
-            WKWebsiteDataTypeLocalStorage,
-            WKWebsiteDataTypeWebSQLDatabases,
-            WKWebsiteDataTypeIndexedDBDatabases,
-            WKWebsiteDataTypeFetchCache,
-            WKWebsiteDataTypeServiceWorkerRegistrations
-        ]
+        guard let data = defaults.data(forKey: cookiesKey),
+              let dicts = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
         
-        let date = Date(timeIntervalSince1970: 0)
-        dataStore.removeData(ofTypes: dataTypes, modifiedSince: date) {
-            print("[CookieManager] History cleared")
+        for dict in dicts {
+            var props: [HTTPCookiePropertyKey: Any] = [:]
+            for (k, v) in dict { props[HTTPCookiePropertyKey(k)] = v }
+            if let cookie = HTTPCookie(properties: props) {
+                HTTPCookieStorage.shared.setCookie(cookie)
+            }
         }
     }
     
-    // MARK: - Clear All Data (including cookies)
     func clearAllData(completion: (() -> Void)? = nil) {
         let dataStore = WKWebsiteDataStore.default()
-        let dataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
-        
-        let date = Date(timeIntervalSince1970: 0)
-        dataStore.removeData(ofTypes: dataTypes, modifiedSince: date) {
-            // Clear HTTP cookies
+        let types = WKWebsiteDataStore.allWebsiteDataTypes()
+        dataStore.removeData(ofTypes: types, modifiedSince: Date(timeIntervalSince1970: 0)) {
             if let cookies = HTTPCookieStorage.shared.cookies {
-                for cookie in cookies {
-                    HTTPCookieStorage.shared.deleteCookie(cookie)
-                }
+                for cookie in cookies { HTTPCookieStorage.shared.deleteCookie(cookie) }
             }
-            
-            // Clear saved cookies from UserDefaults
             self.defaults.removeObject(forKey: self.cookiesKey)
-            
-            print("[CookieManager] All data cleared")
-            completion?()
-        }
-    }
-    
-    // MARK: - Clear Back/Forward List for a WebView
-    func clearBackForwardList(for webView: WKWebView) {
-        // Navigate to current page to clear back/forward list
-        if let currentURL = webView.url {
-            webView.load(URLRequest(url: currentURL))
+            DispatchQueue.main.async { completion?() }
         }
     }
 }

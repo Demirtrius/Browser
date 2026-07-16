@@ -3,24 +3,20 @@ import WebKit
 
 class BrowserViewController: UIViewController {
     
-    // MARK: - Properties
     private var webView: WKWebView!
     private var navigationBar: NavigationBarView!
     private var settingsOverlay: SettingsView!
-    private var downloadIndicator: UILabel!
     private var isSettingsVisible = false
     
-    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        overrideUserInterfaceStyle = .dark // Force dark mode for all system UI
-        setupWebView()
-        setupUI()
-        setupDelegates()
-        setupObservers()
-        applyAdBlocker()
+        overrideUserInterfaceStyle = .dark
+        view.backgroundColor = UIColor(hex: 0x1C1C1E)
         
-        // Load Google on start
+        setupWebView()
+        setupNavigationBar()
+        setupSettings()
+        
         webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
     }
     
@@ -29,95 +25,70 @@ class BrowserViewController: UIViewController {
         CookieManager.shared.saveCookies()
     }
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     // MARK: - Setup
     private func setupWebView() {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        config.preferences.javaScriptEnabled = true
-        config.preferences.javaScriptCanOpenWindowsAutomatically = true
-        
-        // Apply ad blocking
-        AdBlocker.shared.apply(to: config)
         
         webView = WKWebView(frame: .zero, configuration: config)
-        webView.allowsBackForwardNavigationGestures = false // We use custom gestures
+        webView.allowsBackForwardNavigationGestures = false
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        
-        // Custom edge swipe gestures for back/forward
-        let swipeRight = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleSwipeRight))
-        swipeRight.edges = .left
-        view.addGestureRecognizer(swipeRight)
-        
-        let swipeLeft = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleSwipeLeft))
-        swipeLeft.edges = .right
-        view.addGestureRecognizer(swipeLeft)
-        
-        // Make WKWebView's scroll view pan gesture wait for our edge swipes to fail
-        if let scrollGestures = webView.scrollView.gestureRecognizers {
-            for gesture in scrollGestures {
-                if gesture is UIPanGestureRecognizer {
-                    gesture.require(toFail: swipeRight)
-                    gesture.require(toFail: swipeLeft)
-                }
-            }
-        }
-        
-        // Use modern default user agent (always up to date)
-        webView.addObserver(self, forKeyPath: "title", options: [.new], context: nil)
-        webView.addObserver(self, forKeyPath: "loading", options: [.new], context: nil)
-        webView.addObserver(self, forKeyPath: "estimatedProgress", options: [.new], context: nil)
-        webView.addObserver(self, forKeyPath: "URL", options: [.new], context: nil)
-        webView.addObserver(self, forKeyPath: "canGoBack", options: [.new], context: nil)
-        webView.addObserver(self, forKeyPath: "canGoForward", options: [.new], context: nil)
-    }
-    
-    private func setupUI() {
-        view.backgroundColor = UIColor(hex: 0x1C1C1E) // Dark background
-        
-        // Navigation Bar
-        navigationBar = NavigationBarView()
-        navigationBar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(navigationBar)
-        
-        // WebView
         webView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(webView)
         
-        // Download Indicator
-        downloadIndicator = UILabel()
-        downloadIndicator.font = .systemFont(ofSize: 12, weight: .medium)
-        downloadIndicator.textColor = UIColor(hex: 0x6CB4FF)
-        downloadIndicator.textAlignment = .center
-        downloadIndicator.backgroundColor = UIColor(hex: 0x2C2C2E)
-        downloadIndicator.layer.cornerRadius = 4
-        downloadIndicator.clipsToBounds = true
-        downloadIndicator.isHidden = true
-        downloadIndicator.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(downloadIndicator)
+        // Edge swipe gestures
+        let backSwipe = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(onBackSwipe))
+        backSwipe.edges = .left
+        view.addGestureRecognizer(backSwipe)
         
-        // Settings Overlay
-        settingsOverlay = SettingsView()
-        settingsOverlay.isHidden = true
-        settingsOverlay.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(settingsOverlay)
+        let fwdSwipe = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(onFwdSwipe))
+        fwdSwipe.edges = .right
+        view.addGestureRecognizer(fwdSwipe)
+        
+        // Layout
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 44),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
+        
+        // App lifecycle
+        NotificationCenter.default.addObserver(self, selector: #selector(onResign), name: UIApplication.willResignActiveNotification, object: nil)
+    }
+    
+    private func setupNavigationBar() {
+        navigationBar = NavigationBarView()
+        navigationBar.delegate = self
+        navigationBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(navigationBar)
         
         NSLayoutConstraint.activate([
             navigationBar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             navigationBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            navigationBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            
-            webView.topAnchor.constraint(equalTo: navigationBar.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            
-            downloadIndicator.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            downloadIndicator.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            downloadIndicator.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
-            downloadIndicator.heightAnchor.constraint(equalToConstant: 28),
-            
+            navigationBar.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+    }
+    
+    private func setupSettings() {
+        settingsOverlay = SettingsView()
+        settingsOverlay.isHidden = true
+        settingsOverlay.delegate = self
+        settingsOverlay.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(settingsOverlay)
+        
+        settingsOverlay.onClearData = { [weak self] in
+            self?.showClearAlert()
+        }
+        settingsOverlay.onSettingsChanged = {}
+        
+        NSLayoutConstraint.activate([
             settingsOverlay.topAnchor.constraint(equalTo: view.topAnchor),
             settingsOverlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             settingsOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -125,143 +96,71 @@ class BrowserViewController: UIViewController {
         ])
     }
     
-    private func setupDelegates() {
-        navigationBar.delegate = self
-        DownloadManager.shared.delegate = self
-        settingsOverlay.delegate = self
+    // MARK: - Actions
+    @objc private func onBackSwipe(_ g: UIScreenEdgePanGestureRecognizer) {
+        guard g.state == .ended, webView.canGoBack else { return }
+        webView.goBack()
+    }
+    
+    @objc private func onFwdSwipe(_ g: UIScreenEdgePanGestureRecognizer) {
+        guard g.state == .ended, webView.canGoForward else { return }
+        webView.goForward()
+    }
+    
+    @objc private func onResign() {
+        CookieManager.shared.saveCookies()
+    }
+    
+    private func navigate(_ text: String) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
         
-        settingsOverlay.onClearData = { [weak self] in
-            self?.showClearDataAlert()
+        if let url = URL(string: t), url.scheme != nil, t.contains(".") {
+            webView.load(URLRequest(url: url))
+        } else {
+            let chars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~ "))
+            let q = (t.addingPercentEncoding(withAllowedCharacters: chars) ?? t).replacingOccurrences(of: " ", with: "+")
+            if let url = URL(string: "https://www.google.com/search?q=\(q)") {
+                webView.load(URLRequest(url: url))
+            }
         }
-        
-        settingsOverlay.onSettingsChanged = { [weak self] in
-            self?.applyAdBlocker()
-        }
     }
     
-    private func setupObservers() {
-        NotificationCenter.default.addObserver(self, selector: #selector(appWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(appDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
-    }
-    
-    private func applyAdBlocker() {
-        AdBlocker.shared.reloadRules()
-    }
-    
-    // MARK: - UI Updates
-    private func updateUI() {
+    private func refreshBar() {
         navigationBar.updateURL(webView.url?.absoluteString)
         navigationBar.updateProgress(Float(webView.estimatedProgress), isLoading: webView.isLoading)
     }
     
     private func toggleSettings() {
         isSettingsVisible.toggle()
+        settingsOverlay.isHidden = !isSettingsVisible
         if isSettingsVisible {
-            settingsOverlay.isHidden = false
-            UIView.animate(withDuration: 0.25) { self.settingsOverlay.alpha = 1 }
+            UIView.animate(withDuration: 0.2) { self.settingsOverlay.alpha = 1 }
         } else {
-            UIView.animate(withDuration: 0.25, animations: { self.settingsOverlay.alpha = 0 }) { _ in self.settingsOverlay.isHidden = true }
+            UIView.animate(withDuration: 0.2) { self.settingsOverlay.alpha = 0 }
         }
     }
     
-    private func showClearDataAlert() {
-        let alert = UIAlertController(title: "Clear Browsing Data", message: "This will clear all cookies, cache, and browsing data.", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Clear All", style: .destructive) { [weak self] _ in
+    private func showClearAlert() {
+        let a = UIAlertController(title: "Clear Data", message: "Clear all cookies and data?", preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        a.addAction(UIAlertAction(title: "Clear", style: .destructive) { [weak self] _ in
             CookieManager.shared.clearAllData {
                 DispatchQueue.main.async {
-                    let done = UIAlertController(title: "Done", message: "All data cleared.", preferredStyle: .alert)
-                    done.addAction(UIAlertAction(title: "OK", style: .default))
-                    self?.present(done, animated: true)
+                    self?.webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
                 }
             }
         })
-        present(alert, animated: true)
-    }
-    
-    // MARK: - Navigation Helper
-    private func navigateTo(text: String) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        
-        if let url = URL(string: trimmed), url.scheme != nil, trimmed.contains(".") {
-            // Valid URL - load directly (no DoH sync call which blocks main thread)
-            webView.load(URLRequest(url: url))
-        } else {
-            // Search on Google
-            let allowedChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~ "))
-            let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: allowedChars) ?? trimmed
-            let searchQuery = encoded.replacingOccurrences(of: " ", with: "+")
-            guard let searchURL = URL(string: "https://www.google.com/search?q=\(searchQuery)") else { return }
-            webView.load(URLRequest(url: searchURL))
-        }
-    }
-    
-    // MARK: - KVO
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
-        guard let webView = object as? WKWebView, webView == self.webView else { return }
-        
-        switch keyPath {
-        case "title":
-            break // Title shown in navigation bar via URL
-        case "loading":
-            if !webView.isLoading {
-                CookieManager.shared.saveCookies()
-            }
-        case "estimatedProgress":
-            break
-        case "URL":
-            break
-        case "canGoBack", "canGoForward":
-            break
-        default:
-            break
-        }
-        updateUI()
-    }
-    
-    deinit {
-        webView?.removeObserver(self, forKeyPath: "title")
-        webView?.removeObserver(self, forKeyPath: "loading")
-        webView?.removeObserver(self, forKeyPath: "estimatedProgress")
-        webView?.removeObserver(self, forKeyPath: "URL")
-        webView?.removeObserver(self, forKeyPath: "canGoBack")
-        webView?.removeObserver(self, forKeyPath: "canGoForward")
-    }
-    
-    @objc private func appWillResignActive() { CookieManager.shared.saveCookies() }
-    @objc private func appDidBecomeActive() {
-        // Safe cookie restore - won't crash on corrupted data
-        CookieManager.shared.restoreCookies()
-    }
-    
-    // MARK: - Swipe Gestures
-    @objc private func handleSwipeRight(_ gesture: UIScreenEdgePanGestureRecognizer) {
-        guard gesture.state == .ended, webView.canGoBack else { return }
-        DispatchQueue.main.async {
-            self.webView.goBack()
-        }
-    }
-    
-    @objc private func handleSwipeLeft(_ gesture: UIScreenEdgePanGestureRecognizer) {
-        guard gesture.state == .ended, webView.canGoForward else { return }
-        DispatchQueue.main.async {
-            self.webView.goForward()
-        }
+        present(a, animated: true)
     }
 }
 
 // MARK: - NavigationBarViewDelegate
 extension BrowserViewController: NavigationBarViewDelegate {
-    func navigationBarDidTapSettings(_ navBar: NavigationBarView) {
-        toggleSettings()
-    }
-    func navigationBar(_ navBar: NavigationBarView, didSubmitText text: String) {
-        navigateTo(text: text)
-        updateUI()
-    }
+    func navigationBarDidTapSettings(_ navBar: NavigationBarView) { toggleSettings() }
+    func navigationBar(_ navBar: NavigationBarView, didSubmitText text: String) { navigate(text); refreshBar() }
     func navigationBarDidBeginEditing(_ navBar: NavigationBarView) {}
-    func navigationBarDidEndEditing(_ navBar: NavigationBarView) { updateUI() }
+    func navigationBarDidEndEditing(_ navBar: NavigationBarView) { refreshBar() }
 }
 
 // MARK: - WKNavigationDelegate
@@ -276,23 +175,20 @@ extension BrowserViewController: WKNavigationDelegate {
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        // Only check main frame responses for downloads (not subresources like images, css, js)
         guard navigationResponse.isForMainFrame, let url = navigationResponse.response.url else {
-            decisionHandler(.allow)
-            return
+            decisionHandler(.allow); return
         }
         if DownloadManager.shared.isDownloadableURL(url, response: navigationResponse.response) {
-            let filename = DownloadManager.shared.suggestedFilename(from: navigationResponse.response, url: url)
-            DownloadManager.shared.startDownload(from: url, suggestedFilename: filename)
-            decisionHandler(.cancel)
-            return
+            let fn = DownloadManager.shared.suggestedFilename(from: navigationResponse.response, url: url)
+            DownloadManager.shared.startDownload(from: url, suggestedFilename: fn)
+            decisionHandler(.cancel); return
         }
         decisionHandler(.allow)
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         CookieManager.shared.saveCookies()
-        updateUI()
+        refreshBar()
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {}
@@ -309,44 +205,26 @@ extension BrowserViewController: WKUIDelegate {
     }
     
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
-        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() })
-        present(alert, animated: true)
+        let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() })
+        present(a, animated: true)
     }
 }
 
 // MARK: - DownloadManagerDelegate
 extension BrowserViewController: DownloadManagerDelegate {
-    func downloadManager(_ manager: DownloadManager, didStartDownload fileName: String) {
+    func downloadManager(_ m: DownloadManager, didStartDownload fileName: String) {}
+    func downloadManager(_ m: DownloadManager, didUpdateProgress progress: Float, fileName: String) {}
+    func downloadManager(_ m: DownloadManager, didFinishDownload fileName: String, savedTo: URL) {
         DispatchQueue.main.async {
-            self.downloadIndicator.isHidden = false
-            self.downloadIndicator.text = "Downloading: \(fileName)"
+            let a = UIActivityViewController(activityItems: [savedTo], applicationActivities: nil)
+            self.present(a, animated: true)
         }
     }
-    func downloadManager(_ manager: DownloadManager, didUpdateProgress progress: Float, fileName: String) {
-        DispatchQueue.main.async {
-            self.downloadIndicator.text = "Downloading: \(fileName) (\(Int(progress * 100))%)"
-        }
-    }
-    func downloadManager(_ manager: DownloadManager, didFinishDownload fileName: String, savedTo: URL) {
-        DispatchQueue.main.async {
-            self.downloadIndicator.text = "Saved: \(fileName)"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.downloadIndicator.isHidden = true }
-            let activityVC = UIActivityViewController(activityItems: [savedTo], applicationActivities: nil)
-            self.present(activityVC, animated: true)
-        }
-    }
-    func downloadManager(_ manager: DownloadManager, didFailDownload fileName: String, error: Error) {
-        DispatchQueue.main.async {
-            self.downloadIndicator.text = "Failed: \(fileName)"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.downloadIndicator.isHidden = true }
-        }
-    }
+    func downloadManager(_ m: DownloadManager, didFailDownload fileName: String, error: Error) {}
 }
 
 // MARK: - SettingsViewDelegate
 extension BrowserViewController: SettingsViewDelegate {
-    func settingsViewDidDismiss(_ settingsView: SettingsView) {
-        toggleSettings()
-    }
+    func settingsViewDidDismiss(_ settingsView: SettingsView) { toggleSettings() }
 }
