@@ -55,11 +55,12 @@ class BrowserViewController: UIViewController {
         view.addGestureRecognizer(swipeLeft)
         
         // Make WKWebView's scroll view pan gesture wait for our edge swipes to fail
-        // This prevents the scroll view from eating the swipe gestures
-        for gesture in webView.scrollView.gestureRecognizers {
-            if gesture is UIPanGestureRecognizer {
-                gesture.require(toFail: swipeRight)
-                gesture.require(toFail: swipeLeft)
+        if let scrollGestures = webView.scrollView.gestureRecognizers {
+            for gesture in scrollGestures {
+                if gesture is UIPanGestureRecognizer {
+                    gesture.require(toFail: swipeRight)
+                    gesture.require(toFail: swipeLeft)
+                }
             }
         }
         
