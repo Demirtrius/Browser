@@ -5,6 +5,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     
     private var webView: WKWebView!
     private var textField: UITextField!
+    private var spinner: UIActivityIndicatorView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,11 +23,17 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         textField.returnKeyType = .go
         textField.autocapitalizationType = .none
         textField.autocorrectionType = .no
-        textField.clearButtonMode = .whileEditing
-        textField.placeholder = "Search or enter URL"
+        textField.clearButtonMode = .never
         textField.delegate = self
         textField.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(textField)
+        
+        // Loading spinner (right side of address bar)
+        spinner = UIActivityIndicatorView(style: .medium)
+        spinner.color = UIColor(hex: 0x6CB4FF)
+        spinner.hidesWhenStopped = true
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(spinner)
         
         // WebView
         let config = WKWebViewConfiguration()
@@ -38,8 +45,10 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         NSLayoutConstraint.activate([
             textField.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             textField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
-            textField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+            textField.trailingAnchor.constraint(equalTo: spinner.leadingAnchor, constant: -8),
             textField.heightAnchor.constraint(equalToConstant: 36),
+            spinner.centerYAnchor.constraint(equalTo: textField.centerYAnchor),
+            spinner.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             webView.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 8),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -54,7 +63,30 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         fwd.edges = .right
         view.addGestureRecognizer(fwd)
         
+        // Lifecycle observers
+        NotificationCenter.default.addObserver(self, selector: #selector(onBackground), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(onForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+        
+        // Check if app crashed last time
+        if UserDefaults.standard.bool(forKey: "appWasActive") {
+            // App crashed while active - clear web data to prevent repeated crashes
+            WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: Date(timeIntervalSince1970: 0)) {}
+        }
+        UserDefaults.standard.set(true, forKey: "appWasActive")
+        
         webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
+    }
+    
+    @objc private func onBackground() {
+        UserDefaults.standard.set(true, forKey: "appWasActive")
+    }
+    
+    @objc private func onForeground() {
+        UserDefaults.standard.set(false, forKey: "appWasActive")
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     @objc private func swipeBack(_ g: UIScreenEdgePanGestureRecognizer) {
@@ -74,31 +106,54 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             return true
         }
         
-        var urlString = text
-        if !text.hasPrefix("http://") && !text.hasPrefix("https://") {
-            if text.contains(".") && !text.contains(" ") {
-                urlString = "https://" + text
-            } else {
-                let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-                urlString = "https://www.google.com/search?q=" + encoded
-            }
-        }
-        
-        if let url = URL(string: urlString) {
-            webView.load(URLRequest(url: url))
-        }
-        
+        let url = parseURL(text)
+        webView.load(URLRequest(url: url))
         textField.resignFirstResponder()
         return true
     }
     
-    // MARK: - WKNavigationDelegate
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if let url = webView.url {
-            textField.text = url.absoluteString
-        }
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        textField.selectAll(nil)
     }
     
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {}
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {}
+    // MARK: - URL Parsing
+    private func parseURL(_ text: String) -> URL {
+        // Already has scheme
+        if text.hasPrefix("http://") || text.hasPrefix("https://") {
+            if let url = URL(string: text) { return url }
+        }
+        
+        // IP address pattern (e.g., 192.168.1.1 or 192.168.1.1:8080)
+        let ipPattern = #"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$"#
+        if text.range(of: ipPattern, options: .regularExpression) != nil {
+            return URL(string: "http://" + text) ?? URL(string: "https://www.google.com/search?q=" + text)!
+        }
+        
+        // Domain with dots and no spaces = URL
+        if text.contains(".") && !text.contains(" ") {
+            return URL(string: "https://" + text) ?? URL(string: "https://www.google.com/search?q=" + text)!
+        }
+        
+        // Otherwise = Google search
+        let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
+        return URL(string: "https://www.google.com/search?q=" + encoded)!
+    }
+    
+    // MARK: - WKNavigationDelegate
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        textField.text = webView.url?.absoluteString
+        spinner.stopAnimating()
+    }
+    
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        spinner.startAnimating()
+    }
+    
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        spinner.stopAnimating()
+    }
+    
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        spinner.stopAnimating()
+    }
 }
