@@ -8,11 +8,12 @@ class DoHResolver {
     private let cacheTTL: TimeInterval = 300 // 5 minutes
     
     private struct CacheEntry {
+        static let ttl: TimeInterval = 300
         let ip: String
         let timestamp: Date
         
         var isExpired: Bool {
-            return Date().timeIntervalSince(timestamp) > cacheTTL
+            return Date().timeIntervalSince(timestamp) > CacheEntry.ttl
         }
     }
     

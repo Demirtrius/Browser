@@ -55,7 +55,7 @@ class AdBlocker {
     }
     
     func reloadRules() {
-        ruleListStore?.deleteContentRuleList(forIdentifier: rulesIdentifier) { [weak self] error in
+        ruleListStore?.removeContentRuleList(forIdentifier: rulesIdentifier) { [weak self] (error: Error?) in
             self?.loadRules()
         }
     }

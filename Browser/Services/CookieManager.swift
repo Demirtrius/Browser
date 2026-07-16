@@ -12,7 +12,13 @@ class CookieManager {
     // MARK: - Save Cookies
     func saveCookies() {
         let cookies = HTTPCookieStorage.shared.cookies ?? []
-        let cookieDictionaries = cookies.map { $0.properties }
+        let cookieDictionaries = cookies.map { cookie -> [String: Any] in
+            var dict: [String: Any] = [:]
+            for (key, value) in cookie.properties {
+                dict[key.rawValue] = value
+            }
+            return dict
+        }
         
         do {
             let data = try JSONSerialization.data(withJSONObject: cookieDictionaries)
@@ -29,7 +35,11 @@ class CookieManager {
             return
         }
         
-        let cookies = cookieDictionaries.compactMap { properties -> HTTPCookie? in
+        let cookies = cookieDictionaries.compactMap { dict -> HTTPCookie? in
+            var properties: [HTTPCookiePropertyKey: Any] = [:]
+            for (key, value) in dict {
+                properties[HTTPCookiePropertyKey(key)] = value
+            }
             return HTTPCookie(properties: properties)
         }
         
