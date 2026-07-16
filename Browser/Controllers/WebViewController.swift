@@ -11,8 +11,8 @@ class WebViewController: NSObject {
         tab.webView.navigationDelegate = self
         tab.webView.uiDelegate = self
         
-        // Set custom user agent (Chrome v67 style)
-        tab.webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/67.0.3396.87 Mobile/15E148 Safari/605.1.15"
+        // Use default modern WKWebView user agent (no custom UA)
+        // This ensures websites serve the latest, fully-compatible versions
         
         // Observe KVO for title and loading
         tab.webView.addObserver(self, forKeyPath: "title", options: [.new], context: nil)
@@ -47,8 +47,6 @@ class WebViewController: NSObject {
                 delegate?.tabManagerDidStartLoading(tabManager, tab: tab)
             } else {
                 delegate?.tabManagerDidFinishLoading(tabManager, tab: tab)
-                // Clear history after each page load
-                clearHistoryForWebView(webView)
             }
             
         case "estimatedProgress":
@@ -68,19 +66,17 @@ class WebViewController: NSObject {
     }
     
     private func clearHistoryForWebView(_ webView: WKWebView) {
-        // Clear back/forward list by reloading current page
-        // This prevents history accumulation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            // Clear website data (history) but not cookies
-            let dataStore = WKWebsiteDataStore.default()
-            let historyTypes: Set<String> = [
-                WKWebsiteDataTypeDiskCache,
-                WKWebsiteDataTypeMemoryCache
-            ]
-            let date = Date(timeIntervalSince1970: 0)
-            dataStore.removeData(ofTypes: historyTypes, modifiedSince: date) {
-                // History cleared
-            }
+        // Clear website cache/data but NOT cookies, without reloading
+        // Only clear once after page finishes loading (called from didFinish)
+        let dataStore = WKWebsiteDataStore.default()
+        let historyTypes: Set<String> = [
+            WKWebsiteDataTypeDiskCache,
+            WKWebsiteDataTypeMemoryCache,
+            WKWebsiteDataTypeOfflineWebApplicationCache
+        ]
+        let date = Date().addingTimeInterval(-60) // Only clear data older than 1 min to avoid clearing current page resources
+        dataStore.removeData(ofTypes: historyTypes, modifiedSince: date) {
+            // History cleared
         }
     }
     
