@@ -45,15 +45,14 @@ class BrowserViewController: UIViewController {
         webView.uiDelegate = self
         
         // Custom swipe gestures for back/forward
+        // Added to the main view (not webView) to avoid conflict with scroll view
         let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeRight))
         swipeRight.direction = .right
-        swipeRight.delegate = self
-        webView.addGestureRecognizer(swipeRight)
+        view.addGestureRecognizer(swipeRight)
         
         let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeLeft))
         swipeLeft.direction = .left
-        swipeLeft.delegate = self
-        webView.addGestureRecognizer(swipeLeft)
+        view.addGestureRecognizer(swipeLeft)
         
         // Use modern default user agent (always up to date)
         webView.addObserver(self, forKeyPath: "title", options: [.new], context: nil)
@@ -173,18 +172,18 @@ class BrowserViewController: UIViewController {
     // MARK: - Navigation Helper
     private func navigateTo(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        
         if let url = URL(string: trimmed), url.scheme != nil, trimmed.contains(".") {
-            var request = URLRequest(url: url)
-            if BrowserSettings.shared.dohEnabled, let dohReq = DoHResolver.shared.createRequest(for: url) {
-                request = dohReq
-            }
-            webView.load(request)
+            // Valid URL - load directly (no DoH sync call which blocks main thread)
+            webView.load(URLRequest(url: url))
         } else {
             // Search on Google
-            let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmed
-            if let searchURL = URL(string: "https://www.google.com/search?q=\(encoded)") {
-                webView.load(URLRequest(url: searchURL))
-            }
+            let allowedChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~ "))
+            let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: allowedChars) ?? trimmed
+            let searchQuery = encoded.replacingOccurrences(of: " ", with: "+")
+            guard let searchURL = URL(string: "https://www.google.com/search?q=\(searchQuery)") else { return }
+            webView.load(URLRequest(url: searchURL))
         }
     }
     
@@ -237,13 +236,6 @@ class BrowserViewController: UIViewController {
         if webView.canGoForward {
             webView.goForward()
         }
-    }
-}
-
-// MARK: - UIGestureRecognizerDelegate
-extension BrowserViewController: UIGestureRecognizerDelegate {
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        return false
     }
 }
 
