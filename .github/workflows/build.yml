@@ -21,12 +21,10 @@ jobs:
       
       - name: Resolve Package Dependencies
         run: |
-          cd Browser
           xcodebuild -resolvePackageDependencies -project Browser.xcodeproj -scheme Browser || true
       
       - name: Build for iOS Simulator (verify compilation)
         run: |
-          cd Browser
           xcodebuild \
             -project Browser.xcodeproj \
             -scheme Browser \
@@ -40,7 +38,6 @@ jobs:
       
       - name: Build for iOS Device (Release)
         run: |
-          cd Browser
           xcodebuild \
             -project Browser.xcodeproj \
             -scheme Browser \
@@ -55,7 +52,7 @@ jobs:
       - name: Create unsigned IPA
         run: |
           mkdir -p Payload
-          cp -r Browser/build/Build/Products/Release-iphoneos/Browser.app Payload/
+          cp -r build/Build/Products/Release-iphoneos/Browser.app Payload/
           zip -r Browser-unsigned.ipa Payload
           echo "IPA created successfully"
       
