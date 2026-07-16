@@ -1,0 +1,82 @@
+name: Build Browser IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      
+      - name: Show Xcode version
+        run: xcodebuild -version
+      
+      - name: Resolve Package Dependencies
+        run: |
+          cd Browser
+          xcodebuild -resolvePackageDependencies -project Browser.xcodeproj -scheme Browser || true
+      
+      - name: Build for iOS Simulator (verify compilation)
+        run: |
+          cd Browser
+          xcodebuild \
+            -project Browser.xcodeproj \
+            -scheme Browser \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      
+      - name: Build for iOS Device (Release)
+        run: |
+          cd Browser
+          xcodebuild \
+            -project Browser.xcodeproj \
+            -scheme Browser \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      
+      - name: Create unsigned IPA
+        run: |
+          mkdir -p Payload
+          cp -r Browser/build/Build/Products/Release-iphoneos/Browser.app Payload/
+          zip -r Browser-unsigned.ipa Payload
+          echo "IPA created successfully"
+      
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Browser-unsigned-ipa
+          path: Browser-unsigned.ipa
+          retention-days: 30
+      
+      - name: Build Summary
+        run: |
+          echo "=========================================="
+          echo "  Browser IPA Build Complete!"
+          echo "=========================================="
+          echo ""
+          echo "Download the IPA from:"
+          echo "  GitHub > Actions > Build Browser IPA > Artifacts"
+          echo ""
+          echo "To sign and install:"
+          echo "  1. Download Browser-unsigned.ipa"
+          echo "  2. Sign with your eSign certificate"
+          echo "  3. Install on your device"
+          echo "=========================================="
