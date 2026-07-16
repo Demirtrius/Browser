@@ -38,8 +38,8 @@ class DownloadManager: NSObject {
         }
     }
     
-    func isDownloadableURL(_ url: URL, response: URLResponse?) -> Bool {
-        // Check Content-Disposition header
+    func isDownloadableURL(_ url: URL, response: URLResponse) -> Bool {
+        // Check Content-Disposition header for attachment
         if let httpResponse = response as? HTTPURLResponse,
            let contentDisposition = httpResponse.allHeaderFields["Content-Disposition"] as? String {
             if contentDisposition.lowercased().contains("attachment") {
@@ -47,24 +47,27 @@ class DownloadManager: NSObject {
             }
         }
         
-        // Check MIME type for common downloadable types
-        if let mimeType = response?.mimeType?.lowercased() {
+        // Check MIME type for actual downloadable files only (NOT images/text/html)
+        if let mimeType = response.mimeType?.lowercased() {
+            // Never intercept main page content or images (browser should display them)
+            if mimeType.hasPrefix("text/") || mimeType.hasPrefix("image/") || 
+               mimeType.hasPrefix("video/") || mimeType.hasPrefix("audio/") ||
+               mimeType.hasPrefix("application/json") || mimeType.hasPrefix("application/xml") ||
+               mimeType.hasPrefix("multipart/") {
+                return false
+            }
+            
             let downloadableTypes = [
                 "application/pdf",
                 "application/zip",
                 "application/x-rar-compressed",
-                "application/octet-stream",
+                "application/x-7z-compressed",
+                "application/x-tar",
+                "application/gzip",
                 "application/msword",
-                "application/vnd.openxmlformats-officedocument",
+                "application/vnd.openxmlformats",
                 "application/vnd.android.package-archive",
-                "audio/mpeg",
-                "audio/mp4",
-                "video/mp4",
-                "video/quicktime",
-                "image/jpeg",
-                "image/png",
-                "image/gif",
-                "image/webp"
+                "application/octet-stream"
             ]
             
             for type in downloadableTypes {
@@ -74,14 +77,13 @@ class DownloadManager: NSObject {
             }
         }
         
-        // Check file extension
+        // Check file extension for actual downloadable files
         let pathExtension = url.pathExtension.lowercased()
         let downloadableExtensions = [
             "pdf", "zip", "rar", "7z", "tar", "gz",
             "doc", "docx", "xls", "xlsx", "ppt", "pptx",
             "mp3", "mp4", "avi", "mkv", "mov", "flac",
-            "apk", "exe", "dmg", "iso",
-            "jpg", "jpeg", "png", "gif", "webp", "bmp"
+            "apk", "exe", "dmg", "iso"
         ]
         
         return downloadableExtensions.contains(pathExtension)

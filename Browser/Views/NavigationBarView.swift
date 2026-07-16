@@ -1,10 +1,6 @@
 import UIKit
 
 protocol NavigationBarViewDelegate: AnyObject {
-    func navigationBarDidTapBack(_ navBar: NavigationBarView)
-    func navigationBarDidTapForward(_ navBar: NavigationBarView)
-    func navigationBarDidTapReload(_ navBar: NavigationBarView)
-    func navigationBarDidTapHome(_ navBar: NavigationBarView)
     func navigationBarDidTapSettings(_ navBar: NavigationBarView)
     func navigationBar(_ navBar: NavigationBarView, didSubmitText text: String)
     func navigationBarDidBeginEditing(_ navBar: NavigationBarView)
@@ -14,38 +10,6 @@ protocol NavigationBarViewDelegate: AnyObject {
 class NavigationBarView: UIView {
     
     weak var delegate: NavigationBarViewDelegate?
-    
-    private let backButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "chevron.left"), for: .normal)
-        button.tintColor = UIColor(hex: 0x5F6368)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    private let forwardButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "chevron.right"), for: .normal)
-        button.tintColor = UIColor(hex: 0x5F6368)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    private let reloadButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "arrow.clockwise"), for: .normal)
-        button.tintColor = UIColor(hex: 0x5F6368)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
-    
-    private let homeButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "house"), for: .normal)
-        button.tintColor = UIColor(hex: 0x5F6368)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
     
     private let omniboxContainer: UIView = {
         let view = UIView()
@@ -107,10 +71,6 @@ class NavigationBarView: UIView {
     private func setupUI() {
         backgroundColor = .white
         
-        addSubview(backButton)
-        addSubview(forwardButton)
-        addSubview(reloadButton)
-        addSubview(homeButton)
         addSubview(omniboxContainer)
         addSubview(settingsButton)
         addSubview(progressView)
@@ -119,32 +79,8 @@ class NavigationBarView: UIView {
         omniboxContainer.addSubview(omnibox)
         
         NSLayoutConstraint.activate([
-            // Back button
-            backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            backButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            backButton.widthAnchor.constraint(equalToConstant: 32),
-            backButton.heightAnchor.constraint(equalToConstant: 32),
-            
-            // Forward button
-            forwardButton.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 2),
-            forwardButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            forwardButton.widthAnchor.constraint(equalToConstant: 32),
-            forwardButton.heightAnchor.constraint(equalToConstant: 32),
-            
-            // Reload button
-            reloadButton.leadingAnchor.constraint(equalTo: forwardButton.trailingAnchor, constant: 2),
-            reloadButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            reloadButton.widthAnchor.constraint(equalToConstant: 32),
-            reloadButton.heightAnchor.constraint(equalToConstant: 32),
-            
-            // Home button
-            homeButton.leadingAnchor.constraint(equalTo: reloadButton.trailingAnchor, constant: 4),
-            homeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            homeButton.widthAnchor.constraint(equalToConstant: 32),
-            homeButton.heightAnchor.constraint(equalToConstant: 32),
-            
             // Omnibox container
-            omniboxContainer.leadingAnchor.constraint(equalTo: homeButton.trailingAnchor, constant: 8),
+            omniboxContainer.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             omniboxContainer.trailingAnchor.constraint(equalTo: settingsButton.leadingAnchor, constant: -8),
             omniboxContainer.centerYAnchor.constraint(equalTo: centerYAnchor),
             omniboxContainer.heightAnchor.constraint(equalToConstant: 32),
@@ -177,10 +113,6 @@ class NavigationBarView: UIView {
         ])
         
         // Actions
-        backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
-        forwardButton.addTarget(self, action: #selector(forwardTapped), for: .touchUpInside)
-        reloadButton.addTarget(self, action: #selector(reloadTapped), for: .touchUpInside)
-        homeButton.addTarget(self, action: #selector(homeTapped), for: .touchUpInside)
         settingsButton.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
         
         omnibox.delegate = self
@@ -212,11 +144,7 @@ class NavigationBarView: UIView {
     }
     
     func updateNavigationButtons(canGoBack: Bool, canGoForward: Bool) {
-        backButton.isEnabled = canGoBack
-        backButton.tintColor = canGoBack ? UIColor(hex: 0x5F6368) : UIColor(hex: 0xCCCCCC)
-        
-        forwardButton.isEnabled = canGoForward
-        forwardButton.tintColor = canGoForward ? UIColor(hex: 0x5F6368) : UIColor(hex: 0xCCCCCC)
+        // No navigation buttons - swipe gestures handle navigation
     }
     
     // MARK: - Private Methods
@@ -232,22 +160,6 @@ class NavigationBarView: UIView {
     }
     
     // MARK: - Actions
-    
-    @objc private func backTapped() {
-        delegate?.navigationBarDidTapBack(self)
-    }
-    
-    @objc private func forwardTapped() {
-        delegate?.navigationBarDidTapForward(self)
-    }
-    
-    @objc private func reloadTapped() {
-        delegate?.navigationBarDidTapReload(self)
-    }
-    
-    @objc private func homeTapped() {
-        delegate?.navigationBarDidTapHome(self)
-    }
     
     @objc private func settingsTapped() {
         delegate?.navigationBarDidTapSettings(self)

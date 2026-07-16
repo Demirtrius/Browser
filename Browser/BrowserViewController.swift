@@ -131,7 +131,6 @@ class BrowserViewController: UIViewController {
     // MARK: - UI Updates
     private func updateUI() {
         navigationBar.updateURL(webView.url?.absoluteString)
-        navigationBar.updateNavigationButtons(canGoBack: webView.canGoBack, canGoForward: webView.canGoForward)
         navigationBar.updateProgress(Float(webView.estimatedProgress), isLoading: webView.isLoading)
     }
     
@@ -216,22 +215,6 @@ class BrowserViewController: UIViewController {
 
 // MARK: - NavigationBarViewDelegate
 extension BrowserViewController: NavigationBarViewDelegate {
-    func navigationBarDidTapBack(_ navBar: NavigationBarView) {
-        if webView.canGoBack { webView.goBack() }
-        updateUI()
-    }
-    func navigationBarDidTapForward(_ navBar: NavigationBarView) {
-        if webView.canGoForward { webView.goForward() }
-        updateUI()
-    }
-    func navigationBarDidTapReload(_ navBar: NavigationBarView) {
-        webView.reload()
-        updateUI()
-    }
-    func navigationBarDidTapHome(_ navBar: NavigationBarView) {
-        webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
-        updateUI()
-    }
     func navigationBarDidTapSettings(_ navBar: NavigationBarView) {
         toggleSettings()
     }
@@ -255,7 +238,11 @@ extension BrowserViewController: WKNavigationDelegate {
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        guard let url = navigationResponse.response.url else { decisionHandler(.allow); return }
+        // Only check main frame responses for downloads (not subresources like images, css, js)
+        guard navigationResponse.isForMainFrame, let url = navigationResponse.response.url else {
+            decisionHandler(.allow)
+            return
+        }
         if DownloadManager.shared.isDownloadableURL(url, response: navigationResponse.response) {
             let filename = DownloadManager.shared.suggestedFilename(from: navigationResponse.response, url: url)
             DownloadManager.shared.startDownload(from: url, suggestedFilename: filename)
