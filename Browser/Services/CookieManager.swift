@@ -14,7 +14,8 @@ class CookieManager {
         let cookies = HTTPCookieStorage.shared.cookies ?? []
         let cookieDictionaries = cookies.map { cookie -> [String: Any] in
             var dict: [String: Any] = [:]
-            for (key, value) in cookie.properties {
+            guard let properties = cookie.properties else { return dict }
+            for (key, value) in properties {
                 dict[key.rawValue] = value
             }
             return dict
