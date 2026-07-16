@@ -12,7 +12,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         overrideUserInterfaceStyle = .dark
         view.backgroundColor = UIColor(hex: 0x1C1C1E)
         
-        // Text field at top
+        // Text field at top (full width)
         textField = UITextField()
         textField.font = .systemFont(ofSize: 14)
         textField.textColor = .white
@@ -28,7 +28,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         textField.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(textField)
         
-        // Loading spinner (right side of address bar)
+        // Loading spinner (OVERLAY on right side of address bar, doesn't affect width)
         spinner = UIActivityIndicatorView(style: .medium)
         spinner.color = UIColor(hex: 0x6CB4FF)
         spinner.hidesWhenStopped = true
@@ -45,10 +45,11 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         NSLayoutConstraint.activate([
             textField.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             textField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
-            textField.trailingAnchor.constraint(equalTo: spinner.leadingAnchor, constant: -8),
+            textField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             textField.heightAnchor.constraint(equalToConstant: 36),
+            // Spinner overlays on top of right side of text field
             spinner.centerYAnchor.constraint(equalTo: textField.centerYAnchor),
-            spinner.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+            spinner.trailingAnchor.constraint(equalTo: textField.trailingAnchor, constant: -8),
             webView.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 8),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -63,26 +64,19 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         fwd.edges = .right
         view.addGestureRecognizer(fwd)
         
-        // Lifecycle observers
+        // Lifecycle
         NotificationCenter.default.addObserver(self, selector: #selector(onBackground), name: UIApplication.willResignActiveNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(onForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
-        
-        // Check if app crashed last time
-        if UserDefaults.standard.bool(forKey: "appWasActive") {
-            // App crashed while active - clear web data to prevent repeated crashes
-            WKWebsiteDataStore.default().removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: Date(timeIntervalSince1970: 0)) {}
-        }
-        UserDefaults.standard.set(true, forKey: "appWasActive")
+        NotificationCenter.default.addObserver(self, selector: #selector(onForeground), name: UIApplication.didBecomeActiveNotification, object: nil)
         
         webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
     }
     
     @objc private func onBackground() {
-        UserDefaults.standard.set(true, forKey: "appWasActive")
+        // Nothing that could crash
     }
     
     @objc private func onForeground() {
-        UserDefaults.standard.set(false, forKey: "appWasActive")
+        // Nothing that could crash
     }
     
     deinit {
@@ -113,17 +107,19 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     func textFieldDidBeginEditing(_ textField: UITextField) {
-        textField.selectAll(nil)
+        // Select all when user taps anywhere in the address bar
+        DispatchQueue.main.async {
+            textField.selectAll(nil)
+        }
     }
     
     // MARK: - URL Parsing
     private func parseURL(_ text: String) -> URL {
-        // Already has scheme
         if text.hasPrefix("http://") || text.hasPrefix("https://") {
             if let url = URL(string: text) { return url }
         }
         
-        // IP address pattern (e.g., 192.168.1.1 or 192.168.1.1:8080)
+        // IP address pattern
         let ipPattern = #"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$"#
         if text.range(of: ipPattern, options: .regularExpression) != nil {
             return URL(string: "http://" + text) ?? URL(string: "https://www.google.com/search?q=" + text)!
@@ -134,7 +130,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             return URL(string: "https://" + text) ?? URL(string: "https://www.google.com/search?q=" + text)!
         }
         
-        // Otherwise = Google search
+        // Google search
         let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
         return URL(string: "https://www.google.com/search?q=" + encoded)!
     }
