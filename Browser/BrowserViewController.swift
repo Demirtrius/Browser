@@ -45,15 +45,23 @@ class BrowserViewController: UIViewController {
         webView.navigationDelegate = self
         webView.uiDelegate = self
         
-        // Custom swipe gestures for back/forward
-        // Added to the main view (not webView) to avoid conflict with scroll view
-        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeRight))
-        swipeRight.direction = .right
+        // Custom edge swipe gestures for back/forward
+        let swipeRight = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleSwipeRight))
+        swipeRight.edges = .left
         view.addGestureRecognizer(swipeRight)
         
-        let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeLeft))
-        swipeLeft.direction = .left
+        let swipeLeft = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleSwipeLeft))
+        swipeLeft.edges = .right
         view.addGestureRecognizer(swipeLeft)
+        
+        // Make WKWebView's scroll view pan gesture wait for our edge swipes to fail
+        // This prevents the scroll view from eating the swipe gestures
+        for gesture in webView.scrollView.gestureRecognizers {
+            if gesture is UIPanGestureRecognizer {
+                gesture.require(toFail: swipeRight)
+                gesture.require(toFail: swipeLeft)
+            }
+        }
         
         // Use modern default user agent (always up to date)
         webView.addObserver(self, forKeyPath: "title", options: [.new], context: nil)
@@ -227,15 +235,17 @@ class BrowserViewController: UIViewController {
     }
     
     // MARK: - Swipe Gestures
-    @objc private func handleSwipeRight() {
-        if webView.canGoBack {
-            webView.goBack()
+    @objc private func handleSwipeRight(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard gesture.state == .ended, webView.canGoBack else { return }
+        DispatchQueue.main.async {
+            self.webView.goBack()
         }
     }
     
-    @objc private func handleSwipeLeft() {
-        if webView.canGoForward {
-            webView.goForward()
+    @objc private func handleSwipeLeft(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        guard gesture.state == .ended, webView.canGoForward else { return }
+        DispatchQueue.main.async {
+            self.webView.goForward()
         }
     }
 }
