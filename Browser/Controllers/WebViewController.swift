@@ -59,6 +59,9 @@ class WebViewController: NSObject {
             
         case "canGoBack", "canGoForward":
             break // Handled by delegate
+            
+        default:
+            break
         }
         
         delegate?.tabManagerDidUpdateTabs(tabManager)

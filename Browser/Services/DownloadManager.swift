@@ -23,7 +23,9 @@ class DownloadManager: NSObject {
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }()
     
-    private init() {}
+    private override init() {
+        super.init()
+    }
     
     func startDownload(from url: URL, suggestedFilename: String) {
         let task = session.downloadTask(with: URLRequest(url: url))
