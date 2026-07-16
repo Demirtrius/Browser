@@ -40,9 +40,20 @@ class BrowserViewController: UIViewController {
         AdBlocker.shared.apply(to: config)
         
         webView = WKWebView(frame: .zero, configuration: config)
-        webView.allowsBackForwardNavigationGestures = true
+        webView.allowsBackForwardNavigationGestures = false // We use custom gestures
         webView.navigationDelegate = self
         webView.uiDelegate = self
+        
+        // Custom swipe gestures for back/forward
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeRight))
+        swipeRight.direction = .right
+        swipeRight.delegate = self
+        webView.addGestureRecognizer(swipeRight)
+        
+        let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipeLeft))
+        swipeLeft.direction = .left
+        swipeLeft.delegate = self
+        webView.addGestureRecognizer(swipeLeft)
         
         // Use modern default user agent (always up to date)
         webView.addObserver(self, forKeyPath: "title", options: [.new], context: nil)
@@ -210,7 +221,30 @@ class BrowserViewController: UIViewController {
     }
     
     @objc private func appWillResignActive() { CookieManager.shared.saveCookies() }
-    @objc private func appDidBecomeActive() { CookieManager.shared.restoreCookies() }
+    @objc private func appDidBecomeActive() {
+        // Safe cookie restore - won't crash on corrupted data
+        CookieManager.shared.restoreCookies()
+    }
+    
+    // MARK: - Swipe Gestures
+    @objc private func handleSwipeRight() {
+        if webView.canGoBack {
+            webView.goBack()
+        }
+    }
+    
+    @objc private func handleSwipeLeft() {
+        if webView.canGoForward {
+            webView.goForward()
+        }
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+extension BrowserViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return false
+    }
 }
 
 // MARK: - NavigationBarViewDelegate
@@ -254,10 +288,6 @@ extension BrowserViewController: WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         CookieManager.shared.saveCookies()
-        // Clear cache but not cookies
-        let dataStore = WKWebsiteDataStore.default()
-        let types: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache]
-        dataStore.removeData(ofTypes: types, modifiedSince: Date().addingTimeInterval(-60)) {}
         updateUI()
     }
     

@@ -31,25 +31,31 @@ class CookieManager {
     
     // MARK: - Restore Cookies
     func restoreCookies() {
-        guard let data = defaults.data(forKey: cookiesKey),
-              let cookieDictionaries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return
-        }
-        
-        let cookies = cookieDictionaries.compactMap { dict -> HTTPCookie? in
-            var properties: [HTTPCookiePropertyKey: Any] = [:]
-            for (key, value) in dict {
-                properties[HTTPCookiePropertyKey(key)] = value
+        do {
+            guard let data = defaults.data(forKey: cookiesKey),
+                  let cookieDictionaries = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                return
             }
-            return HTTPCookie(properties: properties)
+            
+            let cookies = cookieDictionaries.compactMap { dict -> HTTPCookie? in
+                var properties: [HTTPCookiePropertyKey: Any] = [:]
+                for (key, value) in dict {
+                    properties[HTTPCookiePropertyKey(key)] = value
+                }
+                return HTTPCookie(properties: properties)
+            }
+            
+            let storage = HTTPCookieStorage.shared
+            for cookie in cookies {
+                storage.setCookie(cookie)
+            }
+            
+            print("[CookieManager] Restored \(cookies.count) cookies")
+        } catch {
+            // If cookies are corrupted, clear them to prevent repeated crashes
+            print("[CookieManager] Failed to restore cookies, clearing saved data: \(error)")
+            defaults.removeObject(forKey: cookiesKey)
         }
-        
-        let storage = HTTPCookieStorage.shared
-        for cookie in cookies {
-            storage.setCookie(cookie)
-        }
-        
-        print("[CookieManager] Restored \(cookies.count) cookies")
     }
     
     // MARK: - Clear History (keep cookies)
