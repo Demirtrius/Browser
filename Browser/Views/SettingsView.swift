@@ -41,29 +41,6 @@ class SettingsView: UIView {
         return label
     }()
     
-    // MARK: - Search Engine
-    private let searchEngineLabel = SettingsView.makeLabel(text: "Search Engine")
-    private let searchEngineControl: UISegmentedControl = {
-        let sc = UISegmentedControl(items: ["Google", "Bing", "DuckDuckGo"])
-        sc.selectedSegmentIndex = 0
-        sc.translatesAutoresizingMaskIntoConstraints = false
-        return sc
-    }()
-    
-    // MARK: - Homepage
-    private let homepageLabel = SettingsView.makeLabel(text: "Homepage")
-    private let homepageField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "https://www.google.com"
-        tf.font = .systemFont(ofSize: 14)
-        tf.borderStyle = .roundedRect
-        tf.autocapitalizationType = .none
-        tf.autocorrectionType = .no
-        tf.keyboardType = .URL
-        tf.translatesAutoresizingMaskIntoConstraints = false
-        return tf
-    }()
-    
     // MARK: - Ad Blocker
     private let adBlockLabel = SettingsView.makeLabel(text: "Ad Blocker")
     private let adBlockSwitch: UISwitch = {
@@ -179,11 +156,6 @@ class SettingsView: UIView {
         scrollView.addSubview(contentView)
         
         // Build content
-        addSection(header: "General", views: [
-            makeRow(label: searchEngineLabel, control: searchEngineControl),
-            makeRow(label: homepageLabel, control: homepageField)
-        ])
-        
         addSection(header: "Privacy", views: [
             makeRow(label: adBlockLabel, control: adBlockSwitch),
             makeRow(label: dohLabel, control: dohSwitch),
@@ -227,7 +199,6 @@ class SettingsView: UIView {
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         clearButton.addTarget(self, action: #selector(clearTapped), for: .touchUpInside)
         
-        searchEngineControl.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
         adBlockSwitch.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
         dohSwitch.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
         dohProviderControl.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
@@ -237,8 +208,6 @@ class SettingsView: UIView {
     private func loadSettings() {
         let settings = BrowserSettings.shared
         
-        searchEngineControl.selectedSegmentIndex = BrowserSettings.SearchEngine.allCases.firstIndex(of: settings.searchEngine) ?? 0
-        homepageField.text = settings.homepage
         adBlockSwitch.isOn = settings.adBlockEnabled
         dohSwitch.isOn = settings.dohEnabled
         dohProviderControl.selectedSegmentIndex = BrowserSettings.DoHProvider.allCases.firstIndex(of: settings.dohProvider) ?? 0
@@ -254,15 +223,6 @@ class SettingsView: UIView {
     
     func saveSettings() {
         let settings = BrowserSettings.shared
-        
-        let searchEngines = BrowserSettings.SearchEngine.allCases
-        if searchEngineControl.selectedSegmentIndex < searchEngines.count {
-            settings.searchEngine = searchEngines[searchEngineControl.selectedSegmentIndex]
-        }
-        
-        if let homepage = homepageField.text, !homepage.isEmpty {
-            settings.homepage = homepage
-        }
         
         settings.adBlockEnabled = adBlockSwitch.isOn
         settings.dohEnabled = dohSwitch.isOn

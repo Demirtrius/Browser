@@ -10,20 +10,14 @@
 		A10001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001 /* AppDelegate.swift */; };
 		A10002 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002 /* SceneDelegate.swift */; };
 		A10003 /* UIColor+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003 /* UIColor+Hex.swift */; };
-		A10004 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004 /* MainViewController.swift */; };
-		A10005 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005 /* WebViewController.swift */; };
-		A10006 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006 /* SettingsViewController.swift */; };
-		A10007 /* Tab.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007 /* Tab.swift */; };
-		A10008 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008 /* TabManager.swift */; };
 		A10009 /* BrowserSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009 /* BrowserSettings.swift */; };
-		A10010 /* TabBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010 /* TabBarView.swift */; };
-		A10011 /* TabBarCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10011 /* TabBarCell.swift */; };
 		A10012 /* NavigationBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10012 /* NavigationBarView.swift */; };
 		A10013 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10013 /* SettingsView.swift */; };
 		A10014 /* AdBlocker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014 /* AdBlocker.swift */; };
 		A10015 /* DoHResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10015 /* DoHResolver.swift */; };
 		A10016 /* DownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10016 /* DownloadManager.swift */; };
 		A10017 /* CookieManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10017 /* CookieManager.swift */; };
+		A10020 /* BrowserViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10020 /* BrowserViewController.swift */; };
 		A10018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10018 /* Assets.xcassets */; };
 		A10019 /* adblock-rules.json in Resources */ = {isa = PBXBuildFile; fileRef = B10019 /* adblock-rules.json */; };
 /* End PBXBuildFile section */
@@ -32,14 +26,7 @@
 		B10001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B10002 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		B10003 /* UIColor+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIColor+Hex.swift"; sourceTree = "<group>"; };
-		B10004 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
-		B10005 /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
-		B10006 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
-		B10007 /* Tab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tab.swift; sourceTree = "<group>"; };
-		B10008 /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
 		B10009 /* BrowserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSettings.swift; sourceTree = "<group>"; };
-		B10010 /* TabBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarView.swift; sourceTree = "<group>"; };
-		B10011 /* TabBarCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarCell.swift; sourceTree = "<group>"; };
 		B10012 /* NavigationBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBarView.swift; sourceTree = "<group>"; };
 		B10013 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B10014 /* AdBlocker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdBlocker.swift; sourceTree = "<group>"; };
@@ -48,7 +35,8 @@
 		B10017 /* CookieManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieManager.swift; sourceTree = "<group>"; };
 		B10018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10019 /* adblock-rules.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "adblock-rules.json"; sourceTree = "<group>"; };
-		B10020 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10020 /* BrowserViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserViewController.swift; sourceTree = "<group>"; };
+		B10021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10099 /* Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Browser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -76,10 +64,10 @@
 			children = (
 				B10001 /* AppDelegate.swift */,
 				B10002 /* SceneDelegate.swift */,
+				B10020 /* BrowserViewController.swift */,
 				B10003 /* UIColor+Hex.swift */,
-				B10020 /* Info.plist */,
+				B10021 /* Info.plist */,
 				B10018 /* Assets.xcassets */,
-				D10003 /* Controllers */,
 				D10004 /* Models */,
 				D10005 /* Views */,
 				D10006 /* Services */,
@@ -88,21 +76,9 @@
 			path = Browser;
 			sourceTree = "<group>";
 		};
-		D10003 /* Controllers */ = {
-			isa = PBXGroup;
-			children = (
-				B10004 /* MainViewController.swift */,
-				B10005 /* WebViewController.swift */,
-				B10006 /* SettingsViewController.swift */,
-			);
-			path = Controllers;
-			sourceTree = "<group>";
-		};
 		D10004 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				B10007 /* Tab.swift */,
-				B10008 /* TabManager.swift */,
 				B10009 /* BrowserSettings.swift */,
 			);
 			path = Models;
@@ -111,8 +87,6 @@
 		D10005 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B10010 /* TabBarView.swift */,
-				B10011 /* TabBarCell.swift */,
 				B10012 /* NavigationBarView.swift */,
 				B10013 /* SettingsView.swift */,
 			);
@@ -219,14 +193,8 @@
 				A10001 /* AppDelegate.swift in Sources */,
 				A10002 /* SceneDelegate.swift in Sources */,
 				A10003 /* UIColor+Hex.swift in Sources */,
-				A10004 /* MainViewController.swift in Sources */,
-				A10005 /* WebViewController.swift in Sources */,
-				A10006 /* SettingsViewController.swift in Sources */,
-				A10007 /* Tab.swift in Sources */,
-				A10008 /* TabManager.swift in Sources */,
+				A10020 /* BrowserViewController.swift in Sources */,
 				A10009 /* BrowserSettings.swift in Sources */,
-				A10010 /* TabBarView.swift in Sources */,
-				A10011 /* TabBarCell.swift in Sources */,
 				A10012 /* NavigationBarView.swift in Sources */,
 				A10013 /* SettingsView.swift in Sources */,
 				A10014 /* AdBlocker.swift in Sources */,
