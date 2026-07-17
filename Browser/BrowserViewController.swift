@@ -59,7 +59,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         tabButton = UIButton(type: .system)
         tabButton.backgroundColor = UIColor(hex: 0x3A3A3C)
         tabButton.layer.cornerRadius = 6
-        tabButton.setTitleColor(.white)
+        tabButton.setTitleColor(.white, for: .normal)
         tabButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .bold)
         tabButton.setTitle("1", for: .normal)
         tabButton.translatesAutoresizingMaskIntoConstraints = false
@@ -142,7 +142,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     private func refreshOverview() {
-        let items = tabManager.tabs.map { (id: .id, title: .title, url: .url) }
+        let items = tabManager.tabs.map { tab in (id: tab.id, title: tab.title, url: tab.url) }
         tabOverview.updateTabs(items, activeId: tabManager.activeTabId)
     }
     
@@ -235,7 +235,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     // MARK: - WKNavigationDelegate
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         spinner.stopAnimating()
-        guard let tab = tabManager.tabs.first(where: { .webView == webView }) else { return }
+        guard let tab = tabManager.tabs.first(where: { tab in tab.webView == webView }) else { return }
         tab.title = webView.title ?? "Untitled"
         tab.url = webView.url?.absoluteString ?? ""
         if webView == tabManager.activeTab?.webView {
