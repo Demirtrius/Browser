@@ -64,23 +64,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         fwd.edges = .right
         view.addGestureRecognizer(fwd)
         
-        // Lifecycle
-        NotificationCenter.default.addObserver(self, selector: #selector(onBackground), name: UIApplication.willResignActiveNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(onForeground), name: UIApplication.didBecomeActiveNotification, object: nil)
-        
         webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
-    }
-    
-    @objc private func onBackground() {
-        // Nothing that could crash
-    }
-    
-    @objc private func onForeground() {
-        // Nothing that could crash
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
     }
     
     @objc private func swipeBack(_ g: UIScreenEdgePanGestureRecognizer) {
