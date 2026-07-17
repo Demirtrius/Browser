@@ -67,46 +67,6 @@ class SettingsView: UIView {
         return sc
     }()
     
-    // MARK: - Proxy
-    private let proxyLabel = SettingsView.makeLabel(text: "Proxy")
-    private let proxySwitch: UISwitch = {
-        let sw = UISwitch()
-        sw.isOn = false
-        sw.translatesAutoresizingMaskIntoConstraints = false
-        return sw
-    }()
-    
-    private let proxyHostLabel = SettingsView.makeLabel(text: "Proxy Host")
-    private let proxyHostField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "e.g., 192.168.1.1"
-        tf.font = .systemFont(ofSize: 14)
-        tf.textColor = UIColor(hex: 0xFFFFFF)
-        tf.backgroundColor = UIColor(hex: 0x3A3A3C)
-        tf.borderStyle = .none
-        tf.layer.cornerRadius = 8
-        tf.keyboardAppearance = .dark
-        tf.autocapitalizationType = .none
-        tf.autocorrectionType = .no
-        tf.translatesAutoresizingMaskIntoConstraints = false
-        return tf
-    }()
-    
-    private let proxyPortLabel = SettingsView.makeLabel(text: "Proxy Port")
-    private let proxyPortField: UITextField = {
-        let tf = UITextField()
-        tf.placeholder = "e.g., 8080"
-        tf.font = .systemFont(ofSize: 14)
-        tf.textColor = UIColor(hex: 0xFFFFFF)
-        tf.backgroundColor = UIColor(hex: 0x3A3A3C)
-        tf.borderStyle = .none
-        tf.layer.cornerRadius = 8
-        tf.keyboardType = .numberPad
-        tf.keyboardAppearance = .dark
-        tf.translatesAutoresizingMaskIntoConstraints = false
-        return tf
-    }()
-    
     // MARK: - Download Folder
     private let downloadFolderLabel = SettingsView.makeLabel(text: "Download Folder")
     private let downloadFolderField: UITextField = {
@@ -174,12 +134,6 @@ class SettingsView: UIView {
             makeRow(label: dohProviderLabel, control: dohProviderControl)
         ])
         
-        addSection(header: "Proxy", views: [
-            makeRow(label: proxyLabel, control: proxySwitch),
-            makeRow(label: proxyHostLabel, control: proxyHostField),
-            makeRow(label: proxyPortLabel, control: proxyPortField)
-        ])
-        
         addSection(header: "Downloads", views: [
             makeRow(label: downloadFolderLabel, control: downloadFolderField)
         ])
@@ -214,7 +168,6 @@ class SettingsView: UIView {
         adBlockSwitch.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
         dohSwitch.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
         dohProviderControl.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
-        proxySwitch.addTarget(self, action: #selector(settingsChanged), for: .valueChanged)
     }
     
     private func loadSettings() {
@@ -223,13 +176,7 @@ class SettingsView: UIView {
         adBlockSwitch.isOn = settings.adBlockEnabled
         dohSwitch.isOn = settings.dohEnabled
         dohProviderControl.selectedSegmentIndex = BrowserSettings.DoHProvider.allCases.firstIndex(of: settings.dohProvider) ?? 0
-        proxySwitch.isOn = settings.proxyEnabled
-        proxyHostField.text = settings.proxyHost
-        proxyPortField.text = settings.proxyPort > 0 ? String(settings.proxyPort) : ""
         downloadFolderField.text = settings.downloadFolder
-        
-        proxyHostField.isEnabled = settings.proxyEnabled
-        proxyPortField.isEnabled = settings.proxyEnabled
         dohProviderControl.isEnabled = settings.dohEnabled
     }
     
@@ -244,9 +191,6 @@ class SettingsView: UIView {
             settings.dohProvider = dohProviders[dohProviderControl.selectedSegmentIndex]
         }
         
-        settings.proxyEnabled = proxySwitch.isOn
-        settings.proxyHost = proxyHostField.text ?? ""
-        settings.proxyPort = Int(proxyPortField.text ?? "") ?? 0
         settings.downloadFolder = downloadFolderField.text ?? "Downloads"
         
         onSettingsChanged?()
@@ -345,8 +289,6 @@ class SettingsView: UIView {
     }
     
     @objc private func settingsChanged() {
-        proxyHostField.isEnabled = proxySwitch.isOn
-        proxyPortField.isEnabled = proxySwitch.isOn
         dohProviderControl.isEnabled = dohSwitch.isOn
         saveSettings()
     }

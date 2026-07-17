@@ -7,7 +7,7 @@ class TabManager {
     
     var activeTab: Tab? {
         guard let id = activeTabId else { return nil }
-        return tabs.first { .id == id }
+        return tabs.first { t in t.id == id }
     }
     
     var tabCount: Int { tabs.count }
@@ -34,7 +34,7 @@ class TabManager {
     }
     
     func closeTab(id: UUID) {
-        guard let index = tabs.firstIndex(where: { .id == id }) else { return }
+        guard let index = tabs.firstIndex(where: { t in t.id == id }) else { return }
         tabs.remove(at: index)
         
         if tabs.isEmpty {
@@ -49,7 +49,7 @@ class TabManager {
     }
     
     func switchToTab(id: UUID) {
-        guard tabs.contains(where: { .id == id }) else { return }
+        guard tabs.contains(where: { t in t.id == id }) else { return }
         activeTabId = id
     }
 }

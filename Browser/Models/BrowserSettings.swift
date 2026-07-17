@@ -12,11 +12,6 @@ class BrowserSettings {
         static let adBlockEnabled = "adBlockEnabled"
         static let dohEnabled = "dohEnabled"
         static let dohProvider = "dohProvider"
-        static let proxyEnabled = "proxyEnabled"
-        static let proxyHost = "proxyHost"
-        static let proxyPort = "proxyPort"
-        static let proxyUsername = "proxyUsername"
-        static let proxyPassword = "proxyPassword"
         static let downloadFolder = "downloadFolder"
         static let cookiesData = "cookiesData"
     }
@@ -28,9 +23,6 @@ class BrowserSettings {
         static let adBlockEnabled = true
         static let dohEnabled = true
         static let dohProvider = "cloudflare"
-        static let proxyEnabled = false
-        static let proxyHost = ""
-        static let proxyPort = 0
         static let downloadFolder = "Downloads"
     }
     
@@ -115,32 +107,6 @@ class BrowserSettings {
             return DoHProvider(rawValue: raw) ?? .cloudflare
         }
         set { defaults.set(newValue.rawValue, forKey: Keys.dohProvider) }
-    }
-    
-    // MARK: - Proxy
-    var proxyEnabled: Bool {
-        get { defaults.bool(forKey: Keys.proxyEnabled) }
-        set { defaults.set(newValue, forKey: Keys.proxyEnabled) }
-    }
-    
-    var proxyHost: String {
-        get { defaults.string(forKey: Keys.proxyHost) ?? "" }
-        set { defaults.set(newValue, forKey: Keys.proxyHost) }
-    }
-    
-    var proxyPort: Int {
-        get { defaults.integer(forKey: Keys.proxyPort) }
-        set { defaults.set(newValue, forKey: Keys.proxyPort) }
-    }
-    
-    var proxyUsername: String {
-        get { defaults.string(forKey: Keys.proxyUsername) ?? "" }
-        set { defaults.set(newValue, forKey: Keys.proxyUsername) }
-    }
-    
-    var proxyPassword: String {
-        get { defaults.string(forKey: Keys.proxyPassword) ?? "" }
-        set { defaults.set(newValue, forKey: Keys.proxyPassword) }
     }
     
     // MARK: - Download Folder

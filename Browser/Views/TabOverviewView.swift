@@ -89,7 +89,7 @@ class TabOverviewView: UIView {
     }
     
     private func rebuildCards() {
-        stackView.arrangedSubviews.forEach { .removeFromSuperview() }
+        stackView.arrangedSubviews.forEach { v in v.removeFromSuperview() }
         
         for item in tabItems {
             let card = makeCard(id: item.id, title: item.title, url: item.url, isActive: item.id == activeTabId)
@@ -159,7 +159,7 @@ class TabOverviewView: UIView {
     
     @objc private func closeTapped(_ sender: UIButton) {
         let hashValue = sender.tag
-        if let tab = tabItems.first(where: { .id.hashValue == hashValue }) {
+        if let tab = tabItems.first(where: { t in t.id.hashValue == hashValue }) {
             delegate?.tabOverviewDidCloseTab(id: tab.id)
         }
     }
