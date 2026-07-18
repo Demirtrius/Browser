@@ -15,6 +15,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     private var suggestions: [String] = []
     private var suggestionTask: URLSessionDataTask?
     private var debounceTimer: Timer?
+    private var suggestionsHeight: NSLayoutConstraint!
     
     // Undo close
     private var lastClosedTab: Tab?
@@ -116,8 +117,9 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             suggestionsTable.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 2),
             suggestionsTable.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
             suggestionsTable.trailingAnchor.constraint(equalTo: tabButton.trailingAnchor),
-            suggestionsTable.heightAnchor.constraint(equalToConstant: 200),
         ])
+        suggestionsHeight = suggestionsTable.heightAnchor.constraint(equalToConstant: 200)
+        suggestionsHeight.isActive = true
     }
     
     private func fetchSuggestions(for text: String) {
@@ -151,6 +153,9 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
                 self.suggestions = items
                 self.suggestionsTable.reloadData()
                 self.suggestionsTable.isHidden = items.isEmpty
+                // Dynamic height: 40px per row, max 200px, no empty space
+                let h = CGFloat(min(items.count * 40, 200))
+                self.suggestionsHeight.constant = h
                 if !items.isEmpty {
                     self.view.bringSubviewToFront(self.suggestionsTable)
                 }
@@ -456,6 +461,10 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         return true
     }
     
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        hideSuggestions()
+    }
+    
     func textFieldDidBeginEditing(_ textField: UITextField) {
         DispatchQueue.main.async { textField.selectAll(nil) }
     }
@@ -510,12 +519,14 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         tab.url = webView.url?.absoluteString ?? ""
         if webView == tabManager.activeTab?.webView {
             textField.text = webView.url?.absoluteString
-            // Capture thumbnail after load
-            let config = WKSnapshotConfiguration()
-            config.afterScreenUpdates = true
-            webView.takeSnapshot(with: config) { image, _ in
-                if let image = image { tab.snapshot = image }
-            }
+            // Refresh overview if open (so new tab shows loaded page)
+            if showingOverview { refreshOverview() }
+        }
+        // Capture thumbnail after load
+        let config = WKSnapshotConfiguration()
+        config.afterScreenUpdates = true
+        webView.takeSnapshot(with: config) { image, _ in
+            if let image = image { tab.snapshot = image }
         }
     }
     
