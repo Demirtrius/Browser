@@ -238,7 +238,7 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
     }
     
     // MARK: - Gesture coexistence
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         if let pan = gestureRecognizer as? UIPanGestureRecognizer, let card = pan.view {
             let v = pan.velocity(in: card)
             return abs(v.x) > abs(v.y) // only begin on horizontal swipe
