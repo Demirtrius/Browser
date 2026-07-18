@@ -39,13 +39,15 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
     var onCompleted: ((DownloadItem, URL) -> Void)?
     
     var activeItems: [DownloadItem] {
-        activeDownloads.values.map { .item }.sorted { .filename < .filename }
+        let values = activeDownloads.values.map { entry in entry.item }
+        return values.sorted { a, b in a.filename < b.filename }
     }
     
     var totalProgress: Double {
         let items = activeItems
         guard !items.isEmpty else { return 0 }
-        return items.reduce(0) {  + .progress } / Double(items.count)
+        let sum = items.reduce(0.0) { acc, item in acc + item.progress }
+        return sum / Double(items.count)
     }
     
     var activeCount: Int { activeDownloads.count }
@@ -79,35 +81,32 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         onProgress?(activeItems)
     }
     
-    // MARK: - URLSessionDownloadDelegate
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didWriteData bytesWritten: Int64,
                     totalBytesWritten: Int64,
                     totalBytesExpectedToWrite: Int64) {
-        guard let entry = activeDownloads.values.first(where: { .task.taskIdentifier == downloadTask.taskIdentifier }) else { return }
-        var item = entry.item
+        guard let pair = activeDownloads.values.first(where: { entry in entry.task.taskIdentifier == downloadTask.taskIdentifier }) else { return }
+        var item = pair.item
         item.bytesReceived = totalBytesWritten
         item.totalBytes = totalBytesExpectedToWrite
-        // Update in dictionary
-        if let key = activeDownloads.first(where: { .value.task.taskIdentifier == downloadTask.taskIdentifier })?.key {
-            activeDownloads[key] = (entry.task, item)
+        if let key = activeDownloads.first(where: { entry in entry.value.task.taskIdentifier == downloadTask.taskIdentifier })?.key {
+            activeDownloads[key] = (pair.task, item)
         }
         notifyProgress()
     }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {
-        guard let entry = activeDownloads.values.first(where: { .task.taskIdentifier == downloadTask.taskIdentifier }) else { return }
-        var item = entry.item
+        guard let pair = activeDownloads.values.first(where: { entry in entry.task.taskIdentifier == downloadTask.taskIdentifier }) else { return }
+        var item = pair.item
         item.state = .completed
         
-        // Move to Documents
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dest = docs.appendingPathComponent(item.filename)
         try? FileManager.default.moveItem(at: location, to: dest)
         item.localURL = dest
         
-        if let key = activeDownloads.first(where: { .value.task.taskIdentifier == downloadTask.taskIdentifier })?.key {
+        if let key = activeDownloads.first(where: { entry in entry.value.task.taskIdentifier == downloadTask.taskIdentifier })?.key {
             activeDownloads.removeValue(forKey: key)
         }
         
@@ -117,10 +116,10 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
     
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         if let error = error {
-            guard let entry = activeDownloads.values.first(where: { .task.taskIdentifier == task.taskIdentifier }) else { return }
-            var item = entry.item
+            guard let pair = activeDownloads.values.first(where: { entry in entry.task.taskIdentifier == task.taskIdentifier }) else { return }
+            var item = pair.item
             item.state = .failed
-            if let key = activeDownloads.first(where: { .value.task.taskIdentifier == task.taskIdentifier })?.key {
+            if let key = activeDownloads.first(where: { entry in entry.value.task.taskIdentifier == task.taskIdentifier })?.key {
                 activeDownloads.removeValue(forKey: key)
             }
             print("Download failed: \(error.localizedDescription)")
@@ -128,7 +127,6 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         }
     }
     
-    // MARK: - Helpers
     static func isDownloadable(url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()
         let downloadable = ["pdf","jpg","jpeg","png","gif","bmp","webp","svg",
