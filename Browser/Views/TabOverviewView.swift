@@ -50,7 +50,7 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
     }()
     
     // Layout constants
-    private let hMargin: CGFloat = 14
+    private let hMargin: CGFloat = 8
     private let headerHeight: CGFloat = 46
     private let cardHeight: CGFloat = 380
     private let offsetStep: CGFloat = 118
@@ -205,6 +205,10 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
             thumb.image = snap
             thumb.isHidden = false
             urlLabel.isHidden = true
+            // Top-align the page snapshot so the top of the page is shown (like Chrome)
+            let aspect = snap.size.height / max(1, snap.size.width)
+            thumb.contentMode = .scaleToFill
+            thumb.heightAnchor.constraint(equalTo: thumb.widthAnchor, multiplier: aspect).isActive = true
         } else {
             thumb.isHidden = true
             urlLabel.isHidden = false
@@ -245,7 +249,6 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
             thumb.topAnchor.constraint(equalTo: preview.topAnchor),
             thumb.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
             thumb.trailingAnchor.constraint(equalTo: preview.trailingAnchor),
-            thumb.bottomAnchor.constraint(equalTo: preview.bottomAnchor),
             
             urlLabel.topAnchor.constraint(equalTo: preview.topAnchor, constant: 12),
             urlLabel.leadingAnchor.constraint(equalTo: preview.leadingAnchor, constant: 14),

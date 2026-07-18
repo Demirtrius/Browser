@@ -16,6 +16,23 @@ class TabManager {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
+        
+        // Prevent iOS auto-zoom on input focus while keeping manual pinch-zoom
+        let zoomJS = """
+        (function(){
+          var s=document.createElement('style');
+          s.textContent='input,select,textarea{font-size:16px !important;}';
+          document.documentElement.appendChild(s);
+          var v=document.querySelector('meta[name=viewport]');
+          if(v){var c=v.getAttribute('content')||'';
+            c=c.replace(/user-scalable\\s*=\\s*(no|0)/gi,'user-scalable=yes');
+            c=c.replace(/maximum-scale\\s*=\\s*[0-9.]+/gi,'maximum-scale=5');
+            v.setAttribute('content',c);}
+        })();
+        """
+        let script = WKUserScript(source: zoomJS, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+        config.userContentController.addUserScript(script)
+        
         AdBlocker.shared.apply(to: config)
         return config
     }
