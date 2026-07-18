@@ -7,41 +7,33 @@ protocol TabOverviewDelegate: AnyObject {
     func tabOverviewDidDismiss()
 }
 
-class TabOverviewView: UIView {
+class TabOverviewView: UIView, UIScrollViewDelegate {
     
     weak var delegate: TabOverviewDelegate?
     
     private var tabItems: [(id: UUID, title: String, url: String)] = []
     private var activeTabId: UUID?
+    private var cardViews: [UIView] = []
     
     private let scrollView: UIScrollView = {
         let sv = UIScrollView()
-        sv.isPagingEnabled = true
         sv.showsHorizontalScrollIndicator = false
-        sv.decelerationRate = .fast
         sv.translatesAutoresizingMaskIntoConstraints = false
         return sv
     }()
     
-    private let newTabButton: UIButton = {
+    private let plusButton: UIButton = {
         let btn = UIButton(type: .system)
-        btn.setTitle("+ New Tab", for: .normal)
-        btn.setTitleColor(UIColor(hex: 0x6CB4FF), for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        btn.setTitle("+", for: .normal)
+        btn.setTitleColor(.white, for: .normal)
+        btn.titleLabel?.font = .systemFont(ofSize: 28, weight: .bold)
+        btn.backgroundColor = UIColor(hex: 0x3A3A3C)
+        btn.layer.cornerRadius = 22
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
     
-    private let closeButton: UIButton = {
-        let btn = UIButton(type: .system)
-        btn.setTitle("Done", for: .normal)
-        btn.setTitleColor(UIColor(hex: 0x6CB4FF), for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
-        btn.translatesAutoresizingMaskIntoConstraints = false
-        return btn
-    }()
-    
-    private let tabCounterLabel: UILabel = {
+    private let tabCountLabel: UILabel = {
         let lbl = UILabel()
         lbl.font = .systemFont(ofSize: 13, weight: .medium)
         lbl.textColor = UIColor(hex: 0x98989D)
@@ -50,65 +42,34 @@ class TabOverviewView: UIView {
         return lbl
     }()
     
-    private var cardWidth: CGFloat = 0
-    private var cardHeight: CGFloat = 0
-    private let cardSpacing: CGFloat = 16
-    
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = UIColor(hex: 0x1C1C1E)
         
-        addSubview(closeButton)
         addSubview(scrollView)
-        addSubview(newTabButton)
+        addSubview(plusButton)
+        addSubview(tabCountLabel)
+        scrollView.delegate = self
         
         NSLayoutConstraint.activate([
-            closeButton.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 12),
-            closeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            
-            scrollView.topAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 8),
+            scrollView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 50),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: newTabButton.topAnchor, constant: -8),
+            scrollView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -60),
             
-            newTabButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -12),
-            newTabButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            newTabButton.heightAnchor.constraint(equalToConstant: 44),
-            newTabButton.widthAnchor.constraint(equalToConstant: 200),
+            plusButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            plusButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            plusButton.widthAnchor.constraint(equalToConstant: 44),
+            plusButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            tabCountLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            tabCountLabel.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -24),
         ])
         
-        closeButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
-        newTabButton.addTarget(self, action: #selector(newTabTapped), for: .touchUpInside)
+        plusButton.addTarget(self, action: #selector(newTabTapped), for: .touchUpInside)
     }
     
     required init?(coder: NSCoder) { fatalError() }
-    
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        let w = scrollView.bounds.width
-        let h = scrollView.bounds.height
-        guard w > 0, h > 0 else { return }
-        
-        cardWidth = w * 0.75
-        cardHeight = h * 0.55
-        
-        // Re-layout existing cards
-        for (i, card) in scrollView.subviews.enumerated() {
-            let x = CGFloat(i) * w + (w - cardWidth) / 2
-            let y = (h - cardHeight) / 2
-            card.frame = CGRect(x: x, y: y, width: cardWidth, height: cardHeight)
-        }
-        
-        scrollView.contentSize = CGSize(width: CGFloat(tabItems.count) * w, height: h)
-        
-        // Scroll to active tab
-        if let activeIdx = tabItems.firstIndex(where: { t in t.id == activeTabId }) {
-            scrollView.contentOffset = CGPoint(x: CGFloat(activeIdx) * w, y: 0)
-        }
-        
-        // Update tab counter
-        tabCounterLabel.text = "\(tabItems.count) tab\(tabItems.count == 1 ? "" : "s")"
-    }
     
     func updateTabs(_ items: [(id: UUID, title: String, url: String)], activeId: UUID?) {
         tabItems = items
@@ -117,36 +78,38 @@ class TabOverviewView: UIView {
     }
     
     private func rebuildCards() {
-        scrollView.subviews.forEach { item in item.removeFromSuperview() }
+        cardViews.forEach { item in item.removeFromSuperview() }
+        cardViews.removeAll()
         
         let w = scrollView.bounds.width
         let h = scrollView.bounds.height
         guard w > 0, h > 0 else { return }
         
-        cardWidth = w * 0.75
-        cardHeight = h * 0.55
+        let cardW = w * 0.7
+        let cardH = h * 0.65
+        let pageW = w
+        
+        scrollView.contentSize = CGSize(width: CGFloat(tabItems.count) * pageW, height: h)
         
         for (index, item) in tabItems.enumerated() {
             let isActive = item.id == activeTabId
-            let card = makeCard(index: index, item: item, isActive: isActive)
+            let card = makeCard(index: index, item: item, isActive: isActive, cardW: cardW, cardH: cardH)
             
-            let x = CGFloat(index) * w + (w - cardWidth) / 2
-            let y = (h - cardHeight) / 2
-            card.frame = CGRect(x: x, y: y, width: cardWidth, height: cardHeight)
+            let pageX = CGFloat(index) * pageW
+            card.frame = CGRect(x: pageX + (pageW - cardW) / 2, y: (h - cardH) / 2, width: cardW, height: cardH)
             scrollView.addSubview(card)
+            cardViews.append(card)
         }
         
-        scrollView.contentSize = CGSize(width: CGFloat(tabItems.count) * w, height: h)
-        
-        // Scroll to active tab
         if let activeIdx = tabItems.firstIndex(where: { t in t.id == activeTabId }) {
-            scrollView.contentOffset = CGPoint(x: CGFloat(activeIdx) * w, y: 0)
+            scrollView.contentOffset = CGPoint(x: CGFloat(activeIdx) * pageW, y: 0)
         }
         
-        tabCounterLabel.text = "\(tabItems.count) tab\(tabItems.count == 1 ? "" : "s")"
+        tabCountLabel.text = "\(tabItems.count) tab\(tabItems.count == 1 ? "" : "s")"
+        updateCardZOrder()
     }
     
-    private func makeCard(index: Int, item: (id: UUID, title: String, url: String), isActive: Bool) -> UIView {
+    private func makeCard(index: Int, item: (id: UUID, title: String, url: String), isActive: Bool, cardW: CGFloat, cardH: CGFloat) -> UIView {
         let card = UIView()
         card.backgroundColor = isActive ? UIColor(hex: 0x2C2C2E) : UIColor(hex: 0x242426)
         card.layer.cornerRadius = 12
@@ -157,7 +120,6 @@ class TabOverviewView: UIView {
         card.tag = index
         card.clipsToBounds = true
         
-        // Top bar with index + close
         let topBar = UIView()
         topBar.backgroundColor = UIColor(hex: 0x1C1C1E)
         topBar.translatesAutoresizingMaskIntoConstraints = false
@@ -179,7 +141,6 @@ class TabOverviewView: UIView {
         closeBtn.accessibilityIdentifier = item.id.uuidString
         topBar.addSubview(closeBtn)
         
-        // Preview area (title + url)
         let titleLabel = UILabel()
         titleLabel.text = item.title.isEmpty ? "New Tab" : item.title
         titleLabel.font = .systemFont(ofSize: 14, weight: .semibold)
@@ -202,36 +163,70 @@ class TabOverviewView: UIView {
             topBar.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             topBar.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             topBar.heightAnchor.constraint(equalToConstant: 36),
-            
             badge.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 10),
             badge.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            
             closeBtn.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -4),
             closeBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             closeBtn.widthAnchor.constraint(equalToConstant: 32),
             closeBtn.heightAnchor.constraint(equalToConstant: 32),
-            
             titleLabel.topAnchor.constraint(equalTo: topBar.bottomAnchor, constant: 10),
             titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
             titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
-            
             urlLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
             urlLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
             urlLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
         ])
         
-        // Tap to select
         let tap = UITapGestureRecognizer(target: self, action: #selector(cardTapped(_:)))
         card.addGestureRecognizer(tap)
         
-        // Swipe to close
         let swipe = UIPanGestureRecognizer(target: self, action: #selector(cardSwiped(_:)))
         card.addGestureRecognizer(swipe)
         
         return card
     }
     
-    // MARK: - Card Interactions
+    private func updateCardZOrder() {
+        let pageW = scrollView.bounds.width
+        guard pageW > 0 else { return }
+        let centerX = scrollView.contentOffset.x + pageW / 2
+        
+        for (i, card) in cardViews.enumerated() {
+            let cardCenterX = card.frame.midX
+            let distance = abs(cardCenterX - centerX)
+            card.layer.zPosition = -distance
+        }
+    }
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateCardZOrder()
+        
+        let pageW = scrollView.bounds.width
+        guard pageW > 0 else { return }
+        let progress = scrollView.contentOffset.x / pageW
+        let nearestIndex = Int(progress.rounded())
+        
+        for (i, card) in cardViews.enumerated() {
+            let distance = abs(progress - CGFloat(i))
+            let scale = max(0.85, 1.0 - distance * 0.1)
+            let alpha = max(0.3, 1.0 - distance * 0.4)
+            card.transform = CGAffineTransform(scaleX: scale, y: scale)
+            card.alpha = alpha
+        }
+        
+        if nearestIndex >= 0 && nearestIndex < tabItems.count {
+            activeTabId = tabItems[nearestIndex].id
+        }
+    }
+    
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        let pageW = scrollView.bounds.width
+        guard pageW > 0 else { return }
+        let index = Int((scrollView.contentOffset.x / pageW).rounded())
+        guard index >= 0 && index < tabItems.count else { return }
+        activeTabId = tabItems[index].id
+        delegate?.tabOverviewDidSelectTab(id: tabItems[index].id)
+    }
     
     @objc private func cardTapped(_ g: UITapGestureRecognizer) {
         guard let card = g.view else { return }
@@ -246,8 +241,6 @@ class TabOverviewView: UIView {
         delegate?.tabOverviewDidCloseTab(id: uuid)
     }
     
-    // MARK: - Swipe to Close
-    
     @objc private func cardSwiped(_ g: UIPanGestureRecognizer) {
         guard let card = g.view else { return }
         let translation = g.translation(in: card)
@@ -255,7 +248,7 @@ class TabOverviewView: UIView {
         
         switch g.state {
         case .changed:
-            card.transform = CGAffineTransform(translationX: translation.x, y: 0)
+            card.transform = CGAffineTransform(translationX: translation.x, y: translation.y * 0.3)
             card.alpha = max(0, 1 - abs(progress) * 1.5)
         case .ended, .cancelled:
             if abs(progress) > 0.3 {
@@ -280,5 +273,4 @@ class TabOverviewView: UIView {
     }
     
     @objc private func newTabTapped() { delegate?.tabOverviewDidAddTab() }
-    @objc private func dismissTapped() { delegate?.tabOverviewDidDismiss() }
 }

@@ -55,6 +55,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         textField.clearButtonMode = .never
         textField.delegate = self
         textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.addTarget(self, action: #selector(textFieldDidChange), for: .editingChanged)
         view.addSubview(textField)
         
         spinner = UIActivityIndicatorView(style: .medium)
@@ -222,13 +223,28 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         view.insertSubview(activeTab.webView, belowSubview: textField)
         pinWebView(activeTab.webView)
         
+        // If tab has no content loaded yet, load Google
+        if activeTab.webView.url == nil {
+            activeTab.webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
+        }
+        
         textField.text = activeTab.webView.url?.absoluteString ?? activeTab.url
-        if activeTab.webView.isLoading { spinner.startAnimating() } else { spinner.stopAnimating() }
+        if activeTab.webView.isLoading { showSpinner(true) } else { showSpinner(false) }
         updateTabButton()
     }
     
     private func updateTabButton() {
         tabButton.setTitle("\(tabManager.tabCount)", for: .normal)
+    }
+    
+    private func showSpinner(_ show: Bool) {
+        if show {
+            tabButton.setTitle("", for: .normal)
+            spinner.startAnimating()
+        } else {
+            spinner.stopAnimating()
+            updateTabButton()
+        }
     }
     
     @objc private func showTabOverview() {
@@ -272,6 +288,14 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         hideOverview()
     }
     
+    @objc private func textFieldDidChange() {
+        guard let text = textField.text else { return }
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
+            self?.fetchSuggestions(for: text)
+        }
+    }
+    
     func tabOverviewDidDismiss() {
         hideOverview()
     }
@@ -304,19 +328,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         DispatchQueue.main.async { textField.selectAll(nil) }
     }
     
-    func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
-        // Update text manually for debounce
-        let currentText = textField.text ?? ""
-        guard let stringRange = Range(range, in: currentText) else { return true }
-        let updatedText = currentText.replacingCharacters(in: stringRange, with: string)
-        
-        debounceTimer?.invalidate()
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
-            self?.fetchSuggestions(for: updatedText)
-        }
-        
-        return true
-    }
+
     
     func textFieldShouldClear(_ textField: UITextField) -> Bool {
         hideSuggestions()
@@ -360,7 +372,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     // MARK: - WKNavigationDelegate
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.scrollView.refreshControl?.endRefreshing()
-        spinner.stopAnimating()
+        showSpinner(false)
         guard let tab = tabManager.tabs.first(where: { tab in tab.webView == webView }) else { return }
         tab.title = webView.title ?? "Untitled"
         tab.url = webView.url?.absoluteString ?? ""
@@ -370,12 +382,12 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        if webView == tabManager.activeTab?.webView { spinner.startAnimating() }
+        if webView == tabManager.activeTab?.webView { showSpinner(true) }
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         webView.scrollView.refreshControl?.endRefreshing()
-        spinner.stopAnimating()
+        showSpinner(false)
         if webView == tabManager.activeTab?.webView {
             let html = errorHTML(for: webView.url, error: error)
             webView.loadHTMLString(html, baseURL: nil)
@@ -384,7 +396,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         webView.scrollView.refreshControl?.endRefreshing()
-        spinner.stopAnimating()
+        showSpinner(false)
         if webView == tabManager.activeTab?.webView {
             let html = errorHTML(for: webView.url, error: error)
             webView.loadHTMLString(html, baseURL: nil)
