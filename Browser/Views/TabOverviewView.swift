@@ -16,14 +16,9 @@ class TabOverviewView: UIView {
     
     private let scrollView: UIScrollView = {
         let sv = UIScrollView()
-        sv.translatesAutoresizingMaskIntoConstraints = false
-        return sv
-    }()
-    
-    private let gridContainer: UIStackView = {
-        let sv = UIStackView()
-        sv.axis = .vertical
-        sv.spacing = 10
+        sv.isPagingEnabled = true
+        sv.showsHorizontalScrollIndicator = false
+        sv.decelerationRate = .fast
         sv.translatesAutoresizingMaskIntoConstraints = false
         return sv
     }()
@@ -46,29 +41,35 @@ class TabOverviewView: UIView {
         return btn
     }()
     
+    private let tabCounterLabel: UILabel = {
+        let lbl = UILabel()
+        lbl.font = .systemFont(ofSize: 13, weight: .medium)
+        lbl.textColor = UIColor(hex: 0x98989D)
+        lbl.textAlignment = .center
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        return lbl
+    }()
+    
+    private var cardWidth: CGFloat = 0
+    private var cardHeight: CGFloat = 0
+    private let cardSpacing: CGFloat = 16
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = UIColor(hex: 0x1C1C1E)
         
         addSubview(closeButton)
         addSubview(scrollView)
-        scrollView.addSubview(gridContainer)
         addSubview(newTabButton)
         
         NSLayoutConstraint.activate([
             closeButton.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 12),
             closeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             
-            scrollView.topAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 12),
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            scrollView.bottomAnchor.constraint(equalTo: newTabButton.topAnchor, constant: -12),
-            
-            gridContainer.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            gridContainer.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            gridContainer.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            gridContainer.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            gridContainer.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            scrollView.topAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 8),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: newTabButton.topAnchor, constant: -8),
             
             newTabButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -12),
             newTabButton.centerXAnchor.constraint(equalTo: centerXAnchor),
@@ -82,62 +83,70 @@ class TabOverviewView: UIView {
     
     required init?(coder: NSCoder) { fatalError() }
     
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let w = scrollView.bounds.width
+        let h = scrollView.bounds.height
+        guard w > 0, h > 0 else { return }
+        
+        cardWidth = w * 0.75
+        cardHeight = h * 0.55
+        
+        // Re-layout existing cards
+        for (i, card) in scrollView.subviews.enumerated() {
+            let x = CGFloat(i) * w + (w - cardWidth) / 2
+            let y = (h - cardHeight) / 2
+            card.frame = CGRect(x: x, y: y, width: cardWidth, height: cardHeight)
+        }
+        
+        scrollView.contentSize = CGSize(width: CGFloat(tabItems.count) * w, height: h)
+        
+        // Scroll to active tab
+        if let activeIdx = tabItems.firstIndex(where: { t in t.id == activeTabId }) {
+            scrollView.contentOffset = CGPoint(x: CGFloat(activeIdx) * w, y: 0)
+        }
+        
+        // Update tab counter
+        tabCounterLabel.text = "\(tabItems.count) tab\(tabItems.count == 1 ? "" : "s")"
+    }
+    
     func updateTabs(_ items: [(id: UUID, title: String, url: String)], activeId: UUID?) {
         tabItems = items
         activeTabId = activeId
-        rebuildGrid()
+        rebuildCards()
     }
     
-    private func rebuildGrid() {
-        gridContainer.arrangedSubviews.forEach { v in v.removeFromSuperview() }
+    private func rebuildCards() {
+        scrollView.subviews.forEach { item in item.removeFromSuperview() }
         
-        var index = 0
-        while index < tabItems.count {
-            let row = makeRow(startIndex: index)
-            gridContainer.addArrangedSubview(row)
-            index += 2
-        }
-    }
-    
-    private func makeRow(startIndex: Int) -> UIView {
-        let row = UIView()
-        row.translatesAutoresizingMaskIntoConstraints = false
+        let w = scrollView.bounds.width
+        let h = scrollView.bounds.height
+        guard w > 0, h > 0 else { return }
         
-        let leftCard = makeCard(index: startIndex)
-        row.addSubview(leftCard)
+        cardWidth = w * 0.75
+        cardHeight = h * 0.55
         
-        if startIndex + 1 < tabItems.count {
-            let rightCard = makeCard(index: startIndex + 1)
-            row.addSubview(rightCard)
+        for (index, item) in tabItems.enumerated() {
+            let isActive = item.id == activeTabId
+            let card = makeCard(index: index, item: item, isActive: isActive)
             
-            NSLayoutConstraint.activate([
-                leftCard.topAnchor.constraint(equalTo: row.topAnchor),
-                leftCard.leadingAnchor.constraint(equalTo: row.leadingAnchor),
-                leftCard.bottomAnchor.constraint(equalTo: row.bottomAnchor),
-                leftCard.trailingAnchor.constraint(equalTo: row.centerXAnchor, constant: -5),
-                
-                rightCard.topAnchor.constraint(equalTo: row.topAnchor),
-                rightCard.leadingAnchor.constraint(equalTo: row.centerXAnchor, constant: 5),
-                rightCard.bottomAnchor.constraint(equalTo: row.bottomAnchor),
-                rightCard.trailingAnchor.constraint(equalTo: row.trailingAnchor),
-            ])
-        } else {
-            // Single card on last row — center it with same width as half
-            NSLayoutConstraint.activate([
-                leftCard.topAnchor.constraint(equalTo: row.topAnchor),
-                leftCard.leadingAnchor.constraint(equalTo: row.leadingAnchor),
-                leftCard.bottomAnchor.constraint(equalTo: row.bottomAnchor),
-                leftCard.trailingAnchor.constraint(equalTo: row.centerXAnchor, constant: -5),
-            ])
+            let x = CGFloat(index) * w + (w - cardWidth) / 2
+            let y = (h - cardHeight) / 2
+            card.frame = CGRect(x: x, y: y, width: cardWidth, height: cardHeight)
+            scrollView.addSubview(card)
         }
         
-        return row
+        scrollView.contentSize = CGSize(width: CGFloat(tabItems.count) * w, height: h)
+        
+        // Scroll to active tab
+        if let activeIdx = tabItems.firstIndex(where: { t in t.id == activeTabId }) {
+            scrollView.contentOffset = CGPoint(x: CGFloat(activeIdx) * w, y: 0)
+        }
+        
+        tabCounterLabel.text = "\(tabItems.count) tab\(tabItems.count == 1 ? "" : "s")"
     }
     
-    private func makeCard(index: Int) -> UIView {
-        let item = tabItems[index]
-        let isActive = item.id == activeTabId
-        
+    private func makeCard(index: Int, item: (id: UUID, title: String, url: String), isActive: Bool) -> UIView {
         let card = UIView()
         card.backgroundColor = isActive ? UIColor(hex: 0x2C2C2E) : UIColor(hex: 0x242426)
         card.layer.cornerRadius = 12
@@ -145,67 +154,70 @@ class TabOverviewView: UIView {
             card.layer.borderWidth = 2
             card.layer.borderColor = UIColor(hex: 0x6CB4FF).cgColor
         }
-        card.translatesAutoresizingMaskIntoConstraints = false
         card.tag = index
+        card.clipsToBounds = true
         
-        // Tab index badge
+        // Top bar with index + close
+        let topBar = UIView()
+        topBar.backgroundColor = UIColor(hex: 0x1C1C1E)
+        topBar.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(topBar)
+        
         let badge = UILabel()
         badge.text = "\(index + 1)"
-        badge.font = .systemFont(ofSize: 11, weight: .bold)
+        badge.font = .systemFont(ofSize: 12, weight: .bold)
         badge.textColor = UIColor(hex: 0x98989D)
         badge.translatesAutoresizingMaskIntoConstraints = false
+        topBar.addSubview(badge)
         
-        // Close button
         let closeBtn = UIButton(type: .system)
-        closeBtn.setTitle("\u{00D7}", for: .normal) // × symbol
+        closeBtn.setTitle("\u{00D7}", for: .normal)
         closeBtn.setTitleColor(UIColor(hex: 0x98989D), for: .normal)
-        closeBtn.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
+        closeBtn.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
         closeBtn.translatesAutoresizingMaskIntoConstraints = false
         closeBtn.addTarget(self, action: #selector(closeTapped(_:)), for: .touchUpInside)
-        // Store tab id in accessibilityIdentifier
         closeBtn.accessibilityIdentifier = item.id.uuidString
+        topBar.addSubview(closeBtn)
         
-        // Title
+        // Preview area (title + url)
         let titleLabel = UILabel()
         titleLabel.text = item.title.isEmpty ? "New Tab" : item.title
-        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.font = .systemFont(ofSize: 14, weight: .semibold)
         titleLabel.textColor = .white
         titleLabel.numberOfLines = 2
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(titleLabel)
         
-        // URL
         let urlLabel = UILabel()
         urlLabel.text = item.url.isEmpty ? "" : item.url
         urlLabel.font = .systemFont(ofSize: 11)
         urlLabel.textColor = UIColor(hex: 0x98989D)
         urlLabel.lineBreakMode = .byTruncatingTail
         urlLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        card.addSubview(badge)
-        card.addSubview(closeBtn)
-        card.addSubview(titleLabel)
         card.addSubview(urlLabel)
         
         NSLayoutConstraint.activate([
-            card.heightAnchor.constraint(equalToConstant: 100),
+            topBar.topAnchor.constraint(equalTo: card.topAnchor),
+            topBar.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            topBar.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            topBar.heightAnchor.constraint(equalToConstant: 36),
             
-            badge.topAnchor.constraint(equalTo: card.topAnchor, constant: 8),
-            badge.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
+            badge.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 10),
+            badge.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             
-            closeBtn.topAnchor.constraint(equalTo: card.topAnchor, constant: 4),
-            closeBtn.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -4),
-            closeBtn.widthAnchor.constraint(equalToConstant: 28),
-            closeBtn.heightAnchor.constraint(equalToConstant: 28),
+            closeBtn.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -4),
+            closeBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            closeBtn.widthAnchor.constraint(equalToConstant: 32),
+            closeBtn.heightAnchor.constraint(equalToConstant: 32),
             
-            titleLabel.topAnchor.constraint(equalTo: badge.bottomAnchor, constant: 4),
-            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
-            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
+            titleLabel.topAnchor.constraint(equalTo: topBar.bottomAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            titleLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
             
-            urlLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
-            urlLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 10),
-            urlLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -10),
-            urlLabel.bottomAnchor.constraint(lessThanOrEqualTo: card.bottomAnchor, constant: -8),
+            urlLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            urlLabel.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            urlLabel.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
         ])
         
         // Tap to select

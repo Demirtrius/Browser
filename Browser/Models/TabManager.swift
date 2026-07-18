@@ -24,12 +24,10 @@ class TabManager {
         let config = createWebViewConfig()
         let webView = WKWebView(frame: .zero, configuration: config)
         let tab = Tab(webView: webView)
+        tab.pendingURL = url
         tabs.append(tab)
         activeTabId = tab.id
-        
-        let loadURL = url ?? URL(string: "https://www.google.com")!
-        webView.load(URLRequest(url: loadURL))
-        
+        // Don't load here — let the view controller set delegates first
         return tab
     }
     

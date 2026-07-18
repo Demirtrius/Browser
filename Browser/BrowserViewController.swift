@@ -27,10 +27,10 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         
         // Create first tab
         let tab = tabManager.addTab()
-        tab.webView.navigationDelegate = self
-        tab.webView.uiDelegate = self
+        setupWebView(tab)
         view.insertSubview(tab.webView, belowSubview: textField)
         pinWebView(tab.webView)
+        tab.webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
         
         // Edge swipes
         let back = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(swipeBack))
@@ -57,11 +57,10 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         textField.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(textField)
         
-        spinner = UIActivityIndicatorView(style: .medium)
+        spinner = UIActivityIndicatorView(style: .small)
         spinner.color = UIColor(hex: 0x6CB4FF)
         spinner.hidesWhenStopped = true
         spinner.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(spinner)
         
         tabButton = UIButton(type: .system)
         tabButton.backgroundColor = UIColor(hex: 0x3A3A3C)
@@ -71,6 +70,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         tabButton.setTitle("1", for: .normal)
         tabButton.translatesAutoresizingMaskIntoConstraints = false
         tabButton.addTarget(self, action: #selector(showTabOverview), for: .touchUpInside)
+        tabButton.addSubview(spinner)
         view.addSubview(tabButton)
         
         NSLayoutConstraint.activate([
@@ -82,8 +82,8 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             tabButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
             tabButton.widthAnchor.constraint(equalToConstant: 32),
             tabButton.heightAnchor.constraint(equalToConstant: 28),
-            spinner.centerYAnchor.constraint(equalTo: textField.centerYAnchor),
-            spinner.trailingAnchor.constraint(equalTo: tabButton.leadingAnchor, constant: -4),
+            spinner.centerXAnchor.constraint(equalTo: tabButton.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: tabButton.centerYAnchor),
         ])
     }
     
@@ -198,6 +198,20 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         ])
     }
     
+    // MARK: - Helper
+    private func setupWebView(_ tab: Tab) {
+        tab.webView.navigationDelegate = self
+        tab.webView.uiDelegate = self
+        let rc = UIRefreshControl()
+        rc.tintColor = UIColor(hex: 0x6CB4FF)
+        rc.addTarget(self, action: #selector(pullToRefresh(_:)), for: .valueChanged)
+        tab.webView.scrollView.refreshControl = rc
+    }
+    
+    @objc private func pullToRefresh(_ sender: UIRefreshControl) {
+        tabManager.activeTab?.webView.reload()
+    }
+    
     // MARK: - Tab Switching
     private func switchToActiveTab() {
         guard let activeTab = tabManager.activeTab else { return }
@@ -252,8 +266,8 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     
     func tabOverviewDidAddTab() {
         let tab = tabManager.addTab()
-        tab.webView.navigationDelegate = self
-        tab.webView.uiDelegate = self
+        setupWebView(tab)
+        tab.webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
         switchToActiveTab()
         hideOverview()
     }
@@ -345,6 +359,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     
     // MARK: - WKNavigationDelegate
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        webView.scrollView.refreshControl?.endRefreshing()
         spinner.stopAnimating()
         guard let tab = tabManager.tabs.first(where: { tab in tab.webView == webView }) else { return }
         tab.title = webView.title ?? "Untitled"
@@ -359,6 +374,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        webView.scrollView.refreshControl?.endRefreshing()
         spinner.stopAnimating()
         if webView == tabManager.activeTab?.webView {
             let html = errorHTML(for: webView.url, error: error)
@@ -367,6 +383,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        webView.scrollView.refreshControl?.endRefreshing()
         spinner.stopAnimating()
         if webView == tabManager.activeTab?.webView {
             let html = errorHTML(for: webView.url, error: error)

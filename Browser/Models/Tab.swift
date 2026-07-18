@@ -6,6 +6,7 @@ class Tab {
     let webView: WKWebView
     var title: String = "New Tab"
     var url: String = ""
+    var pendingURL: URL?
     
     init(webView: WKWebView) {
         self.webView = webView
