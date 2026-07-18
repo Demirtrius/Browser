@@ -57,7 +57,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         textField.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(textField)
         
-        spinner = UIActivityIndicatorView(style: .small)
+        spinner = UIActivityIndicatorView(style: .medium)
         spinner.color = UIColor(hex: 0x6CB4FF)
         spinner.hidesWhenStopped = true
         spinner.translatesAutoresizingMaskIntoConstraints = false
