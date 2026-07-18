@@ -27,23 +27,30 @@ class TabManager {
         tab.pendingURL = url
         tabs.append(tab)
         activeTabId = tab.id
-        // Don't load here — let the view controller set delegates first
         return tab
     }
     
-    func closeTab(id: UUID) {
-        guard let index = tabs.firstIndex(where: { t in t.id == id }) else { return }
-        tabs.remove(at: index)
-        
-        if tabs.isEmpty {
-            _ = addTab()
-            return
-        }
+    // Returns the removed tab and its former index (for undo). Does NOT auto-create.
+    @discardableResult
+    func closeTab(id: UUID) -> (tab: Tab, index: Int)? {
+        guard let index = tabs.firstIndex(where: { t in t.id == id }) else { return nil }
+        let removed = tabs.remove(at: index)
         
         if activeTabId == id {
-            let newIndex = min(index, tabs.count - 1)
-            activeTabId = tabs[newIndex].id
+            if tabs.isEmpty {
+                activeTabId = nil
+            } else {
+                let newIndex = min(index, tabs.count - 1)
+                activeTabId = tabs[newIndex].id
+            }
         }
+        return (removed, index)
+    }
+    
+    func insertTab(_ tab: Tab, at index: Int) {
+        let i = min(max(0, index), tabs.count)
+        tabs.insert(tab, at: i)
+        activeTabId = tab.id
     }
     
     func switchToTab(id: UUID) {

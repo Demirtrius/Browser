@@ -16,6 +16,14 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     private var suggestionTask: URLSessionDataTask?
     private var debounceTimer: Timer?
     
+    // Undo close
+    private var lastClosedTab: Tab?
+    private var lastClosedIndex: Int = 0
+    private var autoCreatedOnClose = false
+    private var snackbar: UIView!
+    private var snackbarLabel: UILabel!
+    private var snackbarTimer: Timer?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         overrideUserInterfaceStyle = .dark
@@ -24,6 +32,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         setupTopBar()
         setupSuggestionsView()
         setupTabOverview()
+        setupSnackbar()
         
         // Create first tab
         let tab = tabManager.addTab()
@@ -119,15 +128,20 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         }
         
         let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-        let urlString = "https://suggestqueries.google.com/complete/search?client=chrome&ds=or&q=" + encoded
+        let urlString = "https://suggestqueries.google.com/complete/search?client=firefox&hl=tr&q=" + encoded
         
         guard let url = URL(string: urlString) else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
         
-        suggestionTask = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        suggestionTask = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self, let data = data else { return }
             
             var items: [String] = []
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [Any],
+            // client=firefox returns ISO-8859-9 sometimes; decode robustly
+            let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
+            if let jsonData = text.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [Any],
                json.count >= 2,
                let suggestions = json[1] as? [String] {
                 items = Array(suggestions.prefix(4))
@@ -197,6 +211,87 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         ])
     }
     
+    // MARK: - Undo Snackbar
+    private func setupSnackbar() {
+        snackbar = UIView()
+        snackbar.backgroundColor = UIColor(hex: 0x2C2C2E)
+        snackbar.layer.cornerRadius = 10
+        snackbar.layer.shadowColor = UIColor.black.cgColor
+        snackbar.layer.shadowOpacity = 0.5
+        snackbar.layer.shadowOffset = CGSize(width: 0, height: 2)
+        snackbar.layer.shadowRadius = 6
+        snackbar.alpha = 0
+        snackbar.isHidden = true
+        snackbar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(snackbar)
+        
+        snackbarLabel = UILabel()
+        snackbarLabel.font = .systemFont(ofSize: 14)
+        snackbarLabel.textColor = .white
+        snackbarLabel.lineBreakMode = .byTruncatingTail
+        snackbarLabel.translatesAutoresizingMaskIntoConstraints = false
+        snackbar.addSubview(snackbarLabel)
+        
+        let undoBtn = UIButton(type: .system)
+        undoBtn.setTitle("GERİ AL", for: .normal)
+        undoBtn.setTitleColor(UIColor(hex: 0x6CB4FF), for: .normal)
+        undoBtn.titleLabel?.font = .systemFont(ofSize: 14, weight: .bold)
+        undoBtn.translatesAutoresizingMaskIntoConstraints = false
+        undoBtn.addTarget(self, action: #selector(undoClose), for: .touchUpInside)
+        snackbar.addSubview(undoBtn)
+        
+        NSLayoutConstraint.activate([
+            snackbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            snackbar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            snackbar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            snackbar.heightAnchor.constraint(equalToConstant: 50),
+            
+            snackbarLabel.leadingAnchor.constraint(equalTo: snackbar.leadingAnchor, constant: 16),
+            snackbarLabel.centerYAnchor.constraint(equalTo: snackbar.centerYAnchor),
+            snackbarLabel.trailingAnchor.constraint(equalTo: undoBtn.leadingAnchor, constant: -12),
+            
+            undoBtn.trailingAnchor.constraint(equalTo: snackbar.trailingAnchor, constant: -16),
+            undoBtn.centerYAnchor.constraint(equalTo: snackbar.centerYAnchor),
+            undoBtn.widthAnchor.constraint(equalToConstant: 72),
+        ])
+    }
+    
+    private func showUndoSnackbar(title: String) {
+        snackbarLabel.text = "Kapatıldı: \(title)"
+        snackbar.isHidden = false
+        view.bringSubviewToFront(snackbar)
+        UIView.animate(withDuration: 0.2) { self.snackbar.alpha = 1 }
+        
+        snackbarTimer?.invalidate()
+        snackbarTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            self?.hideSnackbar()
+        }
+    }
+    
+    private func hideSnackbar() {
+        snackbarTimer?.invalidate()
+        UIView.animate(withDuration: 0.2, animations: { self.snackbar.alpha = 0 }) { _ in
+            self.snackbar.isHidden = true
+        }
+        lastClosedTab = nil
+    }
+    
+    @objc private func undoClose() {
+        guard let tab = lastClosedTab else { hideSnackbar(); return }
+        // Remove the auto-created replacement tab if one was made
+        if autoCreatedOnClose, let auto = tabManager.activeTab {
+            _ = tabManager.closeTab(id: auto.id)
+            auto.webView.removeFromSuperview()
+            autoCreatedOnClose = false
+        }
+        tabManager.insertTab(tab, at: lastClosedIndex)
+        setupWebView(tab)
+        lastClosedTab = nil
+        switchToActiveTab()
+        if showingOverview { refreshOverview() }
+        hideSnackbar()
+    }
+    
     private func pinWebView(_ webView: WKWebView) {
         webView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -211,6 +306,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     private func setupWebView(_ tab: Tab) {
         tab.webView.navigationDelegate = self
         tab.webView.uiDelegate = self
+        tab.webView.scrollView.contentInsetAdjustmentBehavior = .never
         let rc = UIRefreshControl()
         rc.tintColor = UIColor(hex: 0x6CB4FF)
         rc.addTarget(self, action: #selector(pullToRefresh(_:)), for: .valueChanged)
@@ -256,6 +352,20 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     @objc private func showTabOverview() {
+        // Capture snapshot of active tab first, then present
+        if let active = tabManager.activeTab, active.webView.superview != nil, active.webView.bounds.width > 0 {
+            let config = WKSnapshotConfiguration()
+            config.afterScreenUpdates = false
+            active.webView.takeSnapshot(with: config) { [weak self] image, _ in
+                if let image = image { active.snapshot = image }
+                self?.presentOverview()
+            }
+        } else {
+            presentOverview()
+        }
+    }
+    
+    private func presentOverview() {
         showingOverview = true
         tabOverview.isHidden = false
         tabOverview.alpha = 0
@@ -271,7 +381,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     private func refreshOverview() {
-        let items = tabManager.tabs.map { tab in (id: tab.id, title: tab.title, url: tab.url) }
+        let items = tabManager.tabs.map { tab in (id: tab.id, title: tab.title, url: tab.url, snapshot: tab.snapshot) }
         tabOverview.updateTabs(items, activeId: tabManager.activeTabId)
     }
     
@@ -283,9 +393,23 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     func tabOverviewDidCloseTab(id: UUID) {
-        tabManager.closeTab(id: id)
+        guard let closed = tabManager.closeTab(id: id) else { return }
+        closed.tab.webView.removeFromSuperview()
+        lastClosedTab = closed.tab
+        lastClosedIndex = closed.index
+        autoCreatedOnClose = false
+        
+        // Always keep at least one tab
+        if tabManager.tabCount == 0 {
+            let tab = tabManager.addTab()
+            setupWebView(tab)
+            tab.webView.load(URLRequest(url: URL(string: "https://www.google.com")!))
+            autoCreatedOnClose = true
+        }
+        
         switchToActiveTab()
         refreshOverview()
+        showUndoSnackbar(title: closed.tab.title.isEmpty ? "New Tab" : closed.tab.title)
     }
     
     func tabOverviewDidAddTab() {
@@ -386,6 +510,12 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         tab.url = webView.url?.absoluteString ?? ""
         if webView == tabManager.activeTab?.webView {
             textField.text = webView.url?.absoluteString
+            // Capture thumbnail after load
+            let config = WKSnapshotConfiguration()
+            config.afterScreenUpdates = true
+            webView.takeSnapshot(with: config) { image, _ in
+                if let image = image { tab.snapshot = image }
+            }
         }
     }
     

@@ -11,7 +11,7 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
     
     weak var delegate: TabOverviewDelegate?
     
-    private var tabItems: [(id: UUID, title: String, url: String)] = []
+    private var tabItems: [(id: UUID, title: String, url: String, snapshot: UIImage?)] = []
     private var activeTabId: UUID?
     private var cards: [UIView] = []
     
@@ -27,9 +27,13 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
         let btn = UIButton(type: .system)
         btn.setTitle("+", for: .normal)
         btn.setTitleColor(.white, for: .normal)
-        btn.titleLabel?.font = .systemFont(ofSize: 26, weight: .regular)
-        btn.backgroundColor = UIColor(hex: 0x2C2C2E)
-        btn.layer.cornerRadius = 8
+        btn.titleLabel?.font = .systemFont(ofSize: 30, weight: .regular)
+        btn.backgroundColor = UIColor(hex: 0x3A3A3C)
+        btn.layer.cornerRadius = 28
+        btn.layer.shadowColor = UIColor.black.cgColor
+        btn.layer.shadowOpacity = 0.5
+        btn.layer.shadowOffset = CGSize(width: 0, height: 2)
+        btn.layer.shadowRadius = 6
         btn.translatesAutoresizingMaskIntoConstraints = false
         return btn
     }()
@@ -48,32 +52,32 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
     // Layout constants
     private let hMargin: CGFloat = 14
     private let headerHeight: CGFloat = 46
-    private let cardHeight: CGFloat = 360
-    private let offsetStep: CGFloat = 116
+    private let cardHeight: CGFloat = 380
+    private let offsetStep: CGFloat = 118
     
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = UIColor(hex: 0x121212)
         
-        addSubview(plusButton)
         addSubview(tabCountButton)
         addSubview(scrollView)
+        addSubview(plusButton)
         
         NSLayoutConstraint.activate([
-            plusButton.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 8),
-            plusButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            plusButton.widthAnchor.constraint(equalToConstant: 44),
-            plusButton.heightAnchor.constraint(equalToConstant: 40),
-            
-            tabCountButton.centerYAnchor.constraint(equalTo: plusButton.centerYAnchor),
+            tabCountButton.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 10),
             tabCountButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             tabCountButton.widthAnchor.constraint(equalToConstant: 34),
             tabCountButton.heightAnchor.constraint(equalToConstant: 30),
             
-            scrollView.topAnchor.constraint(equalTo: plusButton.bottomAnchor, constant: 10),
+            scrollView.topAnchor.constraint(equalTo: tabCountButton.bottomAnchor, constant: 10),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            
+            plusButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            plusButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            plusButton.widthAnchor.constraint(equalToConstant: 56),
+            plusButton.heightAnchor.constraint(equalToConstant: 56),
         ])
         
         plusButton.addTarget(self, action: #selector(newTabTapped), for: .touchUpInside)
@@ -89,7 +93,7 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
         }
     }
     
-    func updateTabs(_ items: [(id: UUID, title: String, url: String)], activeId: UUID?) {
+    func updateTabs(_ items: [(id: UUID, title: String, url: String, snapshot: UIImage?)], activeId: UUID?) {
         tabItems = items
         activeTabId = activeId
         rebuildCards()
@@ -116,7 +120,6 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
         let contentH = CGFloat(max(0, tabItems.count - 1)) * offsetStep + cardHeight + 24
         scrollView.contentSize = CGSize(width: w, height: contentH)
         
-        // Scroll so active tab is visible
         if let activeIdx = tabItems.firstIndex(where: { t in t.id == activeTabId }) {
             let targetY = CGFloat(activeIdx) * offsetStep
             let maxY = max(0, contentH - scrollView.bounds.height)
@@ -178,19 +181,36 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
         closeBtn.accessibilityIdentifier = item.id.uuidString
         header.addSubview(closeBtn)
         
-        // Content preview area
+        // Preview area (thumbnail)
         let preview = UIView()
-        preview.backgroundColor = UIColor(hex: 0x1E1E1E)
+        preview.backgroundColor = UIColor(hex: 0xFFFFFF)
+        preview.clipsToBounds = true
         preview.translatesAutoresizingMaskIntoConstraints = false
         inner.addSubview(preview)
         
+        let thumb = UIImageView()
+        thumb.contentMode = .scaleAspectFill
+        thumb.clipsToBounds = true
+        thumb.translatesAutoresizingMaskIntoConstraints = false
+        preview.addSubview(thumb)
+        
         let urlLabel = UILabel()
-        urlLabel.text = item.url.isEmpty ? "New Tab" : item.url
         urlLabel.font = .systemFont(ofSize: 12)
         urlLabel.textColor = UIColor(hex: 0x8E8E93)
         urlLabel.lineBreakMode = .byTruncatingTail
         urlLabel.translatesAutoresizingMaskIntoConstraints = false
         preview.addSubview(urlLabel)
+        
+        if let snap = item.snapshot {
+            thumb.image = snap
+            thumb.isHidden = false
+            urlLabel.isHidden = true
+        } else {
+            thumb.isHidden = true
+            urlLabel.isHidden = false
+            preview.backgroundColor = UIColor(hex: 0x1E1E1E)
+            urlLabel.text = item.url.isEmpty ? "New Tab" : item.url
+        }
         
         NSLayoutConstraint.activate([
             inner.topAnchor.constraint(equalTo: card.topAnchor),
@@ -221,6 +241,11 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
             preview.leadingAnchor.constraint(equalTo: inner.leadingAnchor),
             preview.trailingAnchor.constraint(equalTo: inner.trailingAnchor),
             preview.bottomAnchor.constraint(equalTo: inner.bottomAnchor),
+            
+            thumb.topAnchor.constraint(equalTo: preview.topAnchor),
+            thumb.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
+            thumb.trailingAnchor.constraint(equalTo: preview.trailingAnchor),
+            thumb.bottomAnchor.constraint(equalTo: preview.bottomAnchor),
             
             urlLabel.topAnchor.constraint(equalTo: preview.topAnchor, constant: 12),
             urlLabel.leadingAnchor.constraint(equalTo: preview.leadingAnchor, constant: 14),
@@ -261,18 +286,19 @@ class TabOverviewView: UIView, UIGestureRecognizerDelegate {
     @objc private func cardPanned(_ g: UIPanGestureRecognizer) {
         guard let card = g.view else { return }
         let translation = g.translation(in: card)
-        let progress = translation.x / card.bounds.width
+        let tx = max(0, translation.x) // rightward only
+        let progress = tx / card.bounds.width
         
         switch g.state {
         case .changed:
-            card.transform = CGAffineTransform(translationX: translation.x, y: 0)
-            card.alpha = max(0, 1 - abs(progress) * 1.5)
+            card.transform = CGAffineTransform(translationX: tx, y: 0)
+            card.alpha = max(0, 1 - progress * 1.2)
         case .ended, .cancelled:
-            if abs(progress) > 0.3 {
-                let dir: CGFloat = progress > 0 ? 1 : -1
+            let velocity = g.velocity(in: card).x
+            if progress > 0.22 || velocity > 700 { // higher sensitivity
                 let idx = card.tag
                 UIView.animate(withDuration: 0.2, animations: {
-                    card.transform = CGAffineTransform(translationX: dir * card.bounds.width * 1.5, y: 0)
+                    card.transform = CGAffineTransform(translationX: card.bounds.width * 1.5, y: 0)
                     card.alpha = 0
                 }) { _ in
                     guard idx < self.tabItems.count else { return }
