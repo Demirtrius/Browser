@@ -26,7 +26,7 @@ class CircularProgressView: UIView {
         
         // Track
         ctx.beginPath()
-        ctx.addArc(withCenter: center, radius: radius, startAngle: -CGFloat.pi / 2, endAngle: CGFloat.pi * 1.5, clockwise: false)
+        ctx.addArc(center: center, radius: radius, startAngle: -CGFloat.pi / 2, endAngle: CGFloat.pi * 1.5, clockwise: false)
         ctx.setLineWidth(lineWidth)
         ctx.setStrokeColor(trackColor.cgColor)
         ctx.setLineCap(.round)
@@ -36,7 +36,7 @@ class CircularProgressView: UIView {
         guard progress > 0 else { return }
         let endAngle = -CGFloat.pi / 2 + CGFloat.pi * 2 * CGFloat(min(max(progress, 0), 1))
         ctx.beginPath()
-        ctx.addArc(withCenter: center, radius: radius, startAngle: -CGFloat.pi / 2, endAngle: endAngle, clockwise: false)
+        ctx.addArc(center: center, radius: radius, startAngle: -CGFloat.pi / 2, endAngle: endAngle, clockwise: false)
         ctx.setLineWidth(lineWidth)
         ctx.setStrokeColor(progressColor.cgColor)
         ctx.setLineCap(.round)
