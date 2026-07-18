@@ -238,11 +238,11 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         let count = items.count
         if count > 0 {
             progressRing.progress = DownloadManager.shared.totalProgress
-            progressRing.isHidden = false
-            tabButton.setTitle("\(count)", for: .normal)
+            progressRing.isHidden = false  // Show ring only when downloads active
+            tabButton.setTitle(String(count), for: .normal)
         } else {
             progressRing.progress = 0
-            progressRing.isHidden = true
+            progressRing.isHidden = true  // Hide completely when no downloads
             updateTabButton()
         }
     }
@@ -594,20 +594,26 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     
     // MARK: - WKNavigationDelegate
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let url = navigationAction.request.url, DownloadManager.isDownloadable(url: url) {
-            DownloadManager.shared.startDownload(url: url)
-            decisionHandler(.cancel)
-            return
+        if let url = navigationAction.request.url {
+            let scheme = url.scheme?.lowercased() ?? ""
+            // Exclude about: and blob: schemes
+            if scheme != "about" && scheme != "blob" && DownloadManager.isDownloadable(url: url) {
+                DownloadManager.shared.startDownload(url: url)
+                decisionHandler(.cancel)
+                return
+            }
         }
         decisionHandler(.allow)
     }
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        if let url = navigationResponse.response.url,
-           DownloadManager.isDownloadable(url: url) {
-            DownloadManager.shared.startDownload(url: url)
-            decisionHandler(.cancel)
-            return
+        if let url = navigationResponse.response.url {
+            let scheme = url.scheme?.lowercased() ?? ""
+            if scheme != "about" && scheme != "blob" && DownloadManager.isDownloadable(url: url) {
+                DownloadManager.shared.startDownload(url: url)
+                decisionHandler(.cancel)
+                return
+            }
         }
         // Also check Content-Disposition header
         if let response = navigationResponse.response as? HTTPURLResponse,
@@ -639,6 +645,14 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             // Refresh overview if open (so new tab shows loaded page)
             if showingOverview { refreshOverview() }
         }
+        
+        // Hide vertical scrollbar on Google.com only
+        if let url = webView.url, let host = url.host?.lowercased(), host.contains("google.com") {
+            let css = "html { -webkit-user-select: none; } ::-webkit-scrollbar:vertical { display: none; }"
+            let jsCode = "const style = document.createElement('style'); style.textContent = '\(css)'; document.head.appendChild(style);"
+            webView.evaluateJavaScript(jsCode)
+        }
+        
         // Capture thumbnail after load
         let config = WKSnapshotConfiguration()
         config.afterScreenUpdates = true

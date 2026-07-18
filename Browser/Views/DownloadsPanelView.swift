@@ -30,11 +30,12 @@ class DownloadsPanelView: UIView {
     
     private let titleLabel: UILabel = {
         let lbl = UILabel()
-        lbl.text = "Downloads"
+        lbl.text = ""
         lbl.font = .systemFont(ofSize: 18, weight: .bold)
         lbl.textColor = .white
         lbl.textAlignment = .center
         lbl.translatesAutoresizingMaskIntoConstraints = false
+        lbl.isHidden = true
         return lbl
     }()
     
@@ -59,12 +60,11 @@ class DownloadsPanelView: UIView {
     
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        backgroundColor = UIColor.black.withAlphaComponent(0.4)
         
         addSubview(backgroundView)
         backgroundView.addSubview(containerView)
         containerView.addSubview(handleView)
-        containerView.addSubview(titleLabel)
         containerView.addSubview(tableView)
         containerView.addSubview(emptyLabel)
         
@@ -77,24 +77,20 @@ class DownloadsPanelView: UIView {
             backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
+            containerView.topAnchor.constraint(equalTo: topAnchor),
             containerView.leadingAnchor.constraint(equalTo: leadingAnchor),
             containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            containerView.heightAnchor.constraint(lessThanOrEqualToConstant: 500),
             
-            handleView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 10),
+            handleView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 12),
             handleView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
             handleView.widthAnchor.constraint(equalToConstant: 36),
             handleView.heightAnchor.constraint(equalToConstant: 5),
             
-            titleLabel.topAnchor.constraint(equalTo: handleView.bottomAnchor, constant: 12),
-            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
-            titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16),
-            
-            tableView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
+            tableView.topAnchor.constraint(equalTo: handleView.bottomAnchor, constant: 12),
             tableView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: containerView.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+            tableView.bottomAnchor.constraint(equalTo: containerView.safeAreaLayoutGuide.bottomAnchor),
             
             emptyLabel.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
             emptyLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
@@ -134,7 +130,7 @@ extension DownloadsPanelView: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 64
+        return 72
     }
 }
 
