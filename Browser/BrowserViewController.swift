@@ -101,6 +101,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         suggestionsTable.separatorColor = UIColor(hex: 0x3A3A3C)
         suggestionsTable.rowHeight = 40
         view.addSubview(suggestionsTable)
+        view.bringSubviewToFront(suggestionsTable)
         
         NSLayoutConstraint.activate([
             suggestionsTable.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 2),
@@ -118,20 +119,27 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         }
         
         let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-        let urlString = "https://suggestqueries.google.com/complete/search?client=firefox&q=" + encoded
+        let urlString = "https://suggestqueries.google.com/complete/search?client=chrome&ds=or&q=" + encoded
         
         guard let url = URL(string: urlString) else { return }
         
-        suggestionTask = URLSession.shared.dataTask(with: url) { data, response, error in
-            guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [Any],
-                  json.count >= 2,
-                  let items = json[1] as? [String] else { return }
+        suggestionTask = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self, let data = data else { return }
+            
+            var items: [String] = []
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [Any],
+               json.count >= 2,
+               let suggestions = json[1] as? [String] {
+                items = Array(suggestions.prefix(4))
+            }
             
             DispatchQueue.main.async {
                 self.suggestions = items
                 self.suggestionsTable.reloadData()
                 self.suggestionsTable.isHidden = items.isEmpty
+                if !items.isEmpty {
+                    self.view.bringSubviewToFront(self.suggestionsTable)
+                }
             }
         }
         suggestionTask?.resume()
