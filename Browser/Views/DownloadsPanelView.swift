@@ -77,10 +77,11 @@ class DownloadsPanelView: UIView {
             backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor),
             backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
-            containerView.topAnchor.constraint(equalTo: topAnchor),
+            // Container takes bottom ~40-50% of screen, not fullscreen
             containerView.leadingAnchor.constraint(equalTo: leadingAnchor),
             containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            containerView.heightAnchor.constraint(lessThanOrEqualTo: heightAnchor, multiplier: 0.5),
             
             handleView.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 12),
             handleView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),

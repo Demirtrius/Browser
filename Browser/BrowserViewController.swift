@@ -236,15 +236,23 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     
     private func updateDownloadProgress(_ items: [DownloadItem]) {
         let count = items.count
+        progressRing.isHidden = count == 0  // Hide ring when no downloads
         if count > 0 {
             progressRing.progress = DownloadManager.shared.totalProgress
-            progressRing.isHidden = false  // Show ring only when downloads active
             tabButton.setTitle(String(count), for: .normal)
         } else {
             progressRing.progress = 0
-            progressRing.isHidden = true  // Hide completely when no downloads
             updateTabButton()
         }
+        
+        // Also dismiss downloads panel if no active downloads
+        if count == 0 && !downloadsPanel.isHidden {
+            dismissDownloadsPanel()
+        }
+    }
+    
+    @objc private func dismissDownloadsPanel() {
+        downloadsPanel.isHidden = true
     }
     
     // MARK: - Downloads Panel
@@ -260,6 +268,11 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             downloadsPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             downloadsPanel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+        
+        // Add swipe gesture to dismiss downloads panel
+        let swipeDismiss = UISwipeGestureRecognizer(target: self, action: #selector(dismissDownloadsPanel))
+        swipeDismiss.direction = .down
+        downloadsPanel.addGestureRecognizer(swipeDismiss)
     }
     
     private func showDownloadsPanel() {
@@ -646,11 +659,18 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
             if showingOverview { refreshOverview() }
         }
         
-        // Hide vertical scrollbar on Google.com only
+        // Auto-reset zoom to 1.0x and hide vertical scrollbar on Google.com
         if let url = webView.url, let host = url.host?.lowercased(), host.contains("google.com") {
             let css = "html { -webkit-user-select: none; } ::-webkit-scrollbar:vertical { display: none; }"
-            let jsCode = "const style = document.createElement('style'); style.textContent = '\(css)'; document.head.appendChild(style);"
+            let jsCode = """
+            document.body.style.webkitTextSizeAdjust = '100%';
+            const style = document.createElement('style');
+            style.textContent = '\(css)';
+            document.head.appendChild(style);
+            """
             webView.evaluateJavaScript(jsCode)
+            // Reset zoom level
+            webView.scrollView.setZoomScale(1.0, animated: false)
         }
         
         // Capture thumbnail after load
