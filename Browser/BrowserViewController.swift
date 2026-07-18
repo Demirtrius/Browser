@@ -1,12 +1,14 @@
 ﻿import UIKit
 import WebKit
 
-class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigationDelegate, WKUIDelegate, TabOverviewDelegate, UITableViewDataSource, UITableViewDelegate {
+class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigationDelegate, WKUIDelegate, TabOverviewDelegate, UITableViewDataSource, UITableViewDelegate, DownloadsPanelDelegate {
     
     private let tabManager = TabManager()
     private var textField: UITextField!
     private var spinner: UIActivityIndicatorView!
     private var tabButton: UIButton!
+    private var progressRing: CircularProgressView!
+    private var downloadsPanel: DownloadsPanelView!
     private var tabOverview: TabOverviewView!
     private var showingOverview = false
     
@@ -33,6 +35,13 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         setupTopBar()
         setupSuggestionsView()
         setupTabOverview()
+        setupDownloadsPanel()
+        setupProgressRing()
+        setupLongPress()
+        DownloadManager.shared.setup()
+        DownloadManager.shared.onProgress = { [weak self] items in
+            self?.updateDownloadProgress(items)
+        }
         setupSnackbar()
         
         // Create first tab
@@ -201,7 +210,80 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         tabManager.activeTab?.webView.load(URLRequest(url: url))
     }
     
-    // MARK: - Tab Overview
+    private func setupLongPress() {
+        let lp = UILongPressGestureRecognizer(target: self, action: #selector(tabButtonLongPressed(_:)))
+        lp.minimumPressDuration = 0.5
+        tabButton.addGestureRecognizer(lp)
+    }
+    
+    @objc private func tabButtonLongPressed(_ g: UILongPressGestureRecognizer) {
+        guard g.state == .began else { return }
+        showDownloadsPanel()
+    }
+    
+    // MARK: - Download Progress Ring
+    private func setupProgressRing() {
+        progressRing = CircularProgressView()
+        progressRing.translatesAutoresizingMaskIntoConstraints = false
+        tabButton.addSubview(progressRing)
+        NSLayoutConstraint.activate([
+            progressRing.topAnchor.constraint(equalTo: tabButton.topAnchor, constant: -4),
+            progressRing.leadingAnchor.constraint(equalTo: tabButton.leadingAnchor, constant: -4),
+            progressRing.trailingAnchor.constraint(equalTo: tabButton.trailingAnchor, constant: 4),
+            progressRing.bottomAnchor.constraint(equalTo: tabButton.bottomAnchor, constant: 4),
+        ])
+    }
+    
+    private func updateDownloadProgress(_ items: [DownloadItem]) {
+        let count = items.count
+        if count > 0 {
+            progressRing.progress = DownloadManager.shared.totalProgress
+            progressRing.isHidden = false
+            tabButton.setTitle("\(count)", for: .normal)
+        } else {
+            progressRing.progress = 0
+            progressRing.isHidden = true
+            updateTabButton()
+        }
+    }
+    
+    // MARK: - Downloads Panel
+    private func setupDownloadsPanel() {
+        downloadsPanel = DownloadsPanelView()
+        downloadsPanel.delegate = self
+        downloadsPanel.isHidden = true
+        downloadsPanel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(downloadsPanel)
+        NSLayoutConstraint.activate([
+            downloadsPanel.topAnchor.constraint(equalTo: view.topAnchor),
+            downloadsPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            downloadsPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            downloadsPanel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+    
+    private func showDownloadsPanel() {
+        downloadsPanel.isHidden = false
+        downloadsPanel.alpha = 0
+        downloadsPanel.updateDownloads(DownloadManager.shared.activeItems)
+        UIView.animate(withDuration: 0.2) { self.downloadsPanel.alpha = 1 }
+    }
+    
+    private func hideDownloadsPanel() {
+        UIView.animate(withDuration: 0.2, animations: { self.downloadsPanel.alpha = 0 }) { _ in
+            self.downloadsPanel.isHidden = true
+        }
+    }
+    
+    // MARK: - DownloadsPanelDelegate
+    func downloadsPanelDidCancel(id: UUID) {
+        DownloadManager.shared.cancelDownload(id: id)
+        downloadsPanel.updateDownloads(DownloadManager.shared.activeItems)
+    }
+    
+    func downloadsPanelDidDismiss() {
+        hideDownloadsPanel()
+    }
     private func setupTabOverview() {
         tabOverview = TabOverviewView()
         tabOverview.delegate = self
@@ -511,6 +593,41 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     // MARK: - WKNavigationDelegate
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if let url = navigationAction.request.url, DownloadManager.isDownloadable(url: url) {
+            DownloadManager.shared.startDownload(url: url)
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
+    
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        if let url = navigationResponse.response.url,
+           DownloadManager.isDownloadable(url: url) {
+            DownloadManager.shared.startDownload(url: url)
+            decisionHandler(.cancel)
+            return
+        }
+        // Also check Content-Disposition header
+        if let response = navigationResponse.response as? HTTPURLResponse,
+           let disposition = response.value(forHTTPHeaderField: "Content-Disposition"),
+           disposition.contains("attachment") {
+            if let url = navigationResponse.response.url {
+                let filename: String?
+                if let range = disposition.range(of: "filename=\""),
+                   let endRange = disposition[range.upperBound...].range(of: "\"") {
+                    filename = String(disposition[range.upperBound..<endRange.lowerBound])
+                } else {
+                    filename = url.lastPathComponent
+                }
+                DownloadManager.shared.startDownload(url: url, suggestedFilename: filename)
+            }
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.scrollView.refreshControl?.endRefreshing()
         showSpinner(false)

@@ -1,186 +1,157 @@
-import Foundation
+﻿import Foundation
 import UIKit
 
-protocol DownloadManagerDelegate: AnyObject {
-    func downloadManager(_ manager: DownloadManager, didStartDownload fileName: String)
-    func downloadManager(_ manager: DownloadManager, didUpdateProgress progress: Float, fileName: String)
-    func downloadManager(_ manager: DownloadManager, didFinishDownload fileName: String, savedTo: URL)
-    func downloadManager(_ manager: DownloadManager, didFailDownload fileName: String, error: Error)
+struct DownloadItem {
+    let id = UUID()
+    var filename: String
+    var totalBytes: Int64
+    var bytesReceived: Int64 = 0
+    var state: State = .downloading
+    var localURL: URL?
+    
+    enum State { case downloading, completed, failed }
+    
+    var progress: Double {
+        totalBytes > 0 ? Double(bytesReceived) / Double(totalBytes) : 0
+    }
+    
+    var progressText: String {
+        let received = formatBytes(bytesReceived)
+        let total = formatBytes(totalBytes)
+        return "\(received) / \(total)"
+    }
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        if bytes >= 1_073_741_824 { return String(format: "%.1f GB", Double(bytes) / 1_073_741_824) }
+        if bytes >= 1_048_576 { return String(format: "%.1f MB", Double(bytes) / 1_048_576) }
+        if bytes >= 1024 { return String(format: "%.1f KB", Double(bytes) / 1024) }
+        return "\(bytes) B"
+    }
 }
 
-class DownloadManager: NSObject {
+class DownloadManager: NSObject, URLSessionDownloadDelegate {
     static let shared = DownloadManager()
+    private override init() { super.init() }
     
-    weak var delegate: DownloadManagerDelegate?
+    private var session: URLSession!
+    private var activeDownloads: [UUID: (task: URLSessionDownloadTask, item: DownloadItem)] = [:]
+    var onProgress: (([DownloadItem]) -> Void)?
+    var onCompleted: ((DownloadItem, URL) -> Void)?
     
-    private var activeDownloads: [URLSessionDownloadTask: String] = [:]
-    private var downloadProgress: [String: Float] = [:]
+    var activeItems: [DownloadItem] {
+        activeDownloads.values.map { .item }.sorted { .filename < .filename }
+    }
     
-    private lazy var session: URLSession = {
+    var totalProgress: Double {
+        let items = activeItems
+        guard !items.isEmpty else { return 0 }
+        return items.reduce(0) {  + .progress } / Double(items.count)
+    }
+    
+    var activeCount: Int { activeDownloads.count }
+    
+    func setup() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300
-        config.timeoutIntervalForResource = 3600
-        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
-    }()
-    
-    private override init() {
-        super.init()
+        session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
     }
     
-    func startDownload(from url: URL, suggestedFilename: String) {
-        let task = session.downloadTask(with: URLRequest(url: url))
-        activeDownloads[task] = suggestedFilename
-        downloadProgress[suggestedFilename] = 0.0
+    func startDownload(url: URL, suggestedFilename: String? = nil) {
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+        
+        let task = session.downloadTask(with: request)
+        let filename = suggestedFilename ?? url.lastPathComponent ?? "download"
+        let item = DownloadItem(filename: filename, totalBytes: 0)
+        
+        activeDownloads[item.id] = (task, item)
         task.resume()
-        
-        DispatchQueue.main.async {
-            self.delegate?.downloadManager(self, didStartDownload: suggestedFilename)
+        notifyProgress()
+    }
+    
+    func cancelDownload(id: UUID) {
+        if let entry = activeDownloads.removeValue(forKey: id) {
+            entry.task.cancel()
+            notifyProgress()
         }
     }
     
-    func isDownloadableURL(_ url: URL, response: URLResponse) -> Bool {
-        // Check Content-Disposition header for attachment
-        if let httpResponse = response as? HTTPURLResponse,
-           let contentDisposition = httpResponse.allHeaderFields["Content-Disposition"] as? String {
-            if contentDisposition.lowercased().contains("attachment") {
-                return true
-            }
-        }
-        
-        // Check MIME type for actual downloadable files only (NOT images/text/html)
-        if let mimeType = response.mimeType?.lowercased() {
-            // Never intercept main page content or images (browser should display them)
-            if mimeType.hasPrefix("text/") || mimeType.hasPrefix("image/") || 
-               mimeType.hasPrefix("video/") || mimeType.hasPrefix("audio/") ||
-               mimeType.hasPrefix("application/json") || mimeType.hasPrefix("application/xml") ||
-               mimeType.hasPrefix("multipart/") {
-                return false
-            }
-            
-            let downloadableTypes = [
-                "application/pdf",
-                "application/zip",
-                "application/x-rar-compressed",
-                "application/x-7z-compressed",
-                "application/x-tar",
-                "application/gzip",
-                "application/msword",
-                "application/vnd.openxmlformats",
-                "application/vnd.android.package-archive",
-                "application/octet-stream"
-            ]
-            
-            for type in downloadableTypes {
-                if mimeType.hasPrefix(type) {
-                    return true
-                }
-            }
-        }
-        
-        // Check file extension for actual downloadable files
-        let pathExtension = url.pathExtension.lowercased()
-        let downloadableExtensions = [
-            "pdf", "zip", "rar", "7z", "tar", "gz",
-            "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-            "mp3", "mp4", "avi", "mkv", "mov", "flac",
-            "apk", "exe", "dmg", "iso"
-        ]
-        
-        return downloadableExtensions.contains(pathExtension)
+    private func notifyProgress() {
+        onProgress?(activeItems)
     }
     
-    func suggestedFilename(from response: URLResponse, url: URL) -> String {
-        // Try Content-Disposition header
-        if let httpResponse = response as? HTTPURLResponse,
-           let contentDisposition = httpResponse.allHeaderFields["Content-Disposition"] as? String {
-            let patterns = ["filename=\"", "filename="]
-            for pattern in patterns {
-                if let range = contentDisposition.range(of: pattern) {
-                    var filename = String(contentDisposition[range.upperBound...])
-                    if let endRange = filename.range(of: "\"") {
-                        filename = String(filename[..<endRange.lowerBound])
-                    } else if let endRange = filename.range(of: ";") {
-                        filename = String(filename[..<endRange.lowerBound])
-                    }
-                    filename = filename.trimmingCharacters(in: .whitespaces)
-                    if !filename.isEmpty {
-                        return filename
-                    }
-                }
-            }
+    // MARK: - URLSessionDownloadDelegate
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64,
+                    totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard let entry = activeDownloads.values.first(where: { .task.taskIdentifier == downloadTask.taskIdentifier }) else { return }
+        var item = entry.item
+        item.bytesReceived = totalBytesWritten
+        item.totalBytes = totalBytesExpectedToWrite
+        // Update in dictionary
+        if let key = activeDownloads.first(where: { .value.task.taskIdentifier == downloadTask.taskIdentifier })?.key {
+            activeDownloads[key] = (entry.task, item)
         }
-        
-        // Fallback to URL path
-        return url.lastPathComponent.isEmpty ? "download" : url.lastPathComponent
+        notifyProgress()
     }
     
-    private func saveDirectory() -> URL {
-        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let folderName = BrowserSettings.shared.downloadFolder
-        let downloadDir = documentsDir.appendingPathComponent(folderName)
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        guard let entry = activeDownloads.values.first(where: { .task.taskIdentifier == downloadTask.taskIdentifier }) else { return }
+        var item = entry.item
+        item.state = .completed
         
-        if !FileManager.default.fileExists(atPath: downloadDir.path) {
-            try? FileManager.default.createDirectory(at: downloadDir, withIntermediateDirectories: true)
+        // Move to Documents
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dest = docs.appendingPathComponent(item.filename)
+        try? FileManager.default.moveItem(at: location, to: dest)
+        item.localURL = dest
+        
+        if let key = activeDownloads.first(where: { .value.task.taskIdentifier == downloadTask.taskIdentifier })?.key {
+            activeDownloads.removeValue(forKey: key)
         }
         
-        return downloadDir
-    }
-}
-
-extension DownloadManager: URLSessionDownloadDelegate {
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        guard let fileName = activeDownloads[downloadTask] else { return }
-        
-        let progress: Float
-        if totalBytesExpectedToWrite > 0 {
-            progress = Float(totalBytesWritten) / Float(totalBytesExpectedToWrite)
-        } else {
-            progress = 0
-        }
-        
-        downloadProgress[fileName] = progress
-        
-        DispatchQueue.main.async {
-            self.delegate?.downloadManager(self, didUpdateProgress: progress, fileName: fileName)
-        }
-    }
-    
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let fileName = activeDownloads[downloadTask] else { return }
-        
-        let destinationURL = saveDirectory().appendingPathComponent(fileName)
-        
-        // Remove existing file if any
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            try? FileManager.default.removeItem(at: destinationURL)
-        }
-        
-        do {
-            try FileManager.default.moveItem(at: location, to: destinationURL)
-            
-            DispatchQueue.main.async {
-                self.delegate?.downloadManager(self, didFinishDownload: fileName, savedTo: destinationURL)
-            }
-        } catch {
-            DispatchQueue.main.async {
-                self.delegate?.downloadManager(self, didFailDownload: fileName, error: error)
-            }
-        }
-        
-        activeDownloads.removeValue(forKey: downloadTask)
-        downloadProgress.removeValue(forKey: fileName)
+        onCompleted?(item, dest)
+        notifyProgress()
     }
     
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error, let downloadTask = task as? URLSessionDownloadTask,
-           let fileName = activeDownloads[downloadTask] {
-            
-            DispatchQueue.main.async {
-                self.delegate?.downloadManager(self, didFailDownload: fileName, error: error)
+        if let error = error {
+            guard let entry = activeDownloads.values.first(where: { .task.taskIdentifier == task.taskIdentifier }) else { return }
+            var item = entry.item
+            item.state = .failed
+            if let key = activeDownloads.first(where: { .value.task.taskIdentifier == task.taskIdentifier })?.key {
+                activeDownloads.removeValue(forKey: key)
             }
-            
-            activeDownloads.removeValue(forKey: downloadTask)
-            downloadProgress.removeValue(forKey: fileName)
+            print("Download failed: \(error.localizedDescription)")
+            notifyProgress()
+        }
+    }
+    
+    // MARK: - Helpers
+    static func isDownloadable(url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        let downloadable = ["pdf","jpg","jpeg","png","gif","bmp","webp","svg",
+            "mp4","mov","avi","mkv","webm","m4v","mp3","wav","aac","flac","ogg","m4a",
+            "zip","rar","7z","tar","gz","ipa","apk","dmg","pkg",
+            "doc","docx","xls","xlsx","ppt","pptx","txt","csv",
+            "exe","msi","deb","apk"]
+        return downloadable.contains(ext)
+    }
+    
+    static func iconFor(filename: String) -> String {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        switch ext {
+        case "mp3","wav","aac","flac","ogg","m4a": return "music.note"
+        case "mp4","mov","avi","mkv","webm","m4v": return "film"
+        case "jpg","jpeg","png","gif","bmp","webp","svg": return "photo"
+        case "pdf": return "doc.richtext"
+        case "zip","rar","7z","tar","gz": return "archivebox"
+        case "ipa","apk","exe","msi","deb","pkg": return "app"
+        case "doc","docx": return "doc.text"
+        case "xls","xlsx","csv": return "tablecells"
+        case "ppt","pptx": return "presentation"
+        default: return "doc"
         }
     }
 }

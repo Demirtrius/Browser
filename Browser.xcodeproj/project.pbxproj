@@ -21,6 +21,8 @@
 		A10022 /* Tab.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022 /* Tab.swift */; };
 		A10023 /* TabManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10023 /* TabManager.swift */; };
 		A10024 /* TabOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024 /* TabOverviewView.swift */; };
+		A10025 /* CircularProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025 /* CircularProgressView.swift */; };
+		A10026 /* DownloadsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10026 /* DownloadsPanelView.swift */; };
 		A10018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10018 /* Assets.xcassets */; };
 		A10019 /* adblock-rules.json in Resources */ = {isa = PBXBuildFile; fileRef = B10019 /* adblock-rules.json */; };
 /* End PBXBuildFile section */
@@ -42,6 +44,8 @@
 		B10022 /* Tab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tab.swift; sourceTree = "<group>"; };
 		B10023 /* TabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManager.swift; sourceTree = "<group>"; };
 		B10024 /* TabOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabOverviewView.swift; sourceTree = "<group>"; };
+		B10025 /* CircularProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircularProgressView.swift; sourceTree = "<group>"; };
+		B10026 /* DownloadsPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsPanelView.swift; sourceTree = "<group>"; };
 		B10021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10099 /* Browser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Browser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -98,6 +102,8 @@
 				B10012 /* NavigationBarView.swift */,
 				B10013 /* SettingsView.swift */,
 				B10024 /* TabOverviewView.swift */,
+				B10025 /* CircularProgressView.swift */,
+				B10026 /* DownloadsPanelView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -213,6 +219,8 @@
 				A10022 /* Tab.swift in Sources */,
 				A10023 /* TabManager.swift in Sources */,
 				A10024 /* TabOverviewView.swift in Sources */,
+				A10025 /* CircularProgressView.swift in Sources */,
+				A10026 /* DownloadsPanelView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
