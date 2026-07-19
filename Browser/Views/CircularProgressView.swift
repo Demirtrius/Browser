@@ -14,6 +14,7 @@ class CircularProgressView: UIView {
         super.init(frame: frame)
         backgroundColor = .clear
         isUserInteractionEnabled = false
+        isHidden = true  // Start hidden, only show when downloads active
     }
     
     required init?(coder: NSCoder) { fatalError() }

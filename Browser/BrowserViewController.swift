@@ -252,7 +252,7 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
     }
     
     @objc private func dismissDownloadsPanel() {
-        downloadsPanel.isHidden = true
+        hideDownloadsPanel()
     }
     
     // MARK: - Downloads Panel
@@ -661,16 +661,25 @@ class BrowserViewController: UIViewController, UITextFieldDelegate, WKNavigation
         
         // Auto-reset zoom to 1.0x and hide vertical scrollbar on Google.com
         if let url = webView.url, let host = url.host?.lowercased(), host.contains("google.com") {
-            let css = "html { -webkit-user-select: none; } ::-webkit-scrollbar:vertical { display: none; }"
+            // Full viewport fit CSS + scrollbar hide + zoom reset
+            let css = """
+            * { box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+            html { -webkit-user-select: none; } 
+            ::-webkit-scrollbar:vertical { display: none; }
+            """
             let jsCode = """
             document.body.style.webkitTextSizeAdjust = '100%';
+            document.documentElement.style.webkitTextSizeAdjust = '100%';
             const style = document.createElement('style');
             style.textContent = '\(css)';
             document.head.appendChild(style);
             """
             webView.evaluateJavaScript(jsCode)
-            // Reset zoom level
+            // Force viewport fit and zoom reset
             webView.scrollView.setZoomScale(1.0, animated: false)
+            webView.scrollView.minimumZoomScale = 1.0
+            webView.scrollView.maximumZoomScale = 1.0
         }
         
         // Capture thumbnail after load
